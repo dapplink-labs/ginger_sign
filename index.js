@@ -14,6 +14,7 @@ const en = require('./address/encrypt');
 const coin = path.join(process.cwd(), './static', 'coin.db');
 let db = new sqlite3.Database(coin);
 let key = '1234567890123456';
+const _passwd = /^[A-Za-z0-9]{16}$/;
 
 
 db.serialize(() => {
@@ -111,10 +112,77 @@ app.post('/import', (req, res) => {
     })
 });
 
-// 签名函数
-app.post('/sign', (req, res) => {
+// 生成地址请求函数
+app.post('/create', (req, res) => {
+    let { password } = req.body;
+    let obj = {
+        password:password,
+    };
+    createAddr(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
 
 });
+
+// 生成地址请求函数
+app.post('/sign', (req, res) => {
+    let { password } = req.body;
+    let obj = {
+        password:password,
+    };
+    createAddr(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+
+});
+
+// 一次行地址生成函数实现
+const createAddr = (data) => {
+    let { password } = data;
+    console.log("password = ", password);
+    return new Promise((resolve, reject) => {
+        password ? null : reject('请填写你的 password');
+        let words = mnemonic.createHelpWord(12, "english");
+        if(words != null) {
+            console.log("words = ", words);
+            let seed = mnemonic.mnemonicToSeed(words, password);
+            if(seed != null) {
+                let btcParmas = {
+                    "seed":seed,
+                    "coinType":"BTC",
+                    "number":12,
+                    "bipNumber":0,
+                    "receiveOrChange":"1",
+                    "coinMark":"BTC"
+                };
+
+                let ethParmas = {
+                    "seed":seed,
+                    "coinType":"ETH",
+                    "number":60,
+                    "bipNumber":0,
+                    "receiveOrChange":"1",
+                    "coinMark":"ETH"
+                };
+                let btcAddr = addr.blockchainAddress(btcParmas);
+                let ethAddr = addr.blockchainAddress(ethParmas);
+                if(ethAddr != null && ethAddr != null) {
+                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
+                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                    let addrData ={
+                        btcAddr:btcAddr.address,
+                        ethAddr:ethAddr.address
+                    }
+                    resolve({code:200, msg:"success", result:addrData});
+                }
+            }
+        }
+    })
+};
 
 // 具体函数实现
 const words = (data) => {
@@ -143,7 +211,6 @@ const exportWord = (data) => {
         }).catch((e) => {
             reject(e.message)
         })
-
     })
 };
 
