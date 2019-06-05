@@ -92,6 +92,30 @@ app.post('/address', (req, res) => {
     })
 });
 
+app.post('/import', (req, res) => {
+    let {mnemonic, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} = req.body;
+    let obj = {
+        word:mnemonic,
+        language:language,
+        passwd:passwd,
+        coinType:coinType,
+        number:number,
+        bipNumber:bipNumber,
+        receiveOrChange:receiveOrChange,
+        coinMark:coinMark
+    }
+    importMnemonic(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+// 签名函数
+app.post('/sign', (req, res) => {
+
+});
+
 // 具体函数实现
 const words = (data) => {
     let { number, language, passwd } = data;
@@ -137,7 +161,7 @@ const generateAddr = (data) => {
         passwd ? null : reject('请填写你的 passwd');
         getWords(sequence).then((mnemonicCode) => {
             let words = mnemonic.entropyToWords(mnemonicCode, language);
-            let seed = mnemonic.mnemonicToSeed(mnemonicCode, passwd);
+            let seed = mnemonic.mnemonicToSeed(words, passwd);
             console.log("seed = ", seed);
             let addressParmas = {
                 "seed":seed,
@@ -157,6 +181,42 @@ const generateAddr = (data) => {
         }).catch((e) => {
             reject(e.message)
         })
+    });
+};
+
+const importMnemonic = (data) => {
+    let {word, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} =data;
+    return new Promise((resolve, reject) => {
+        word ? null : reject('请填写你的 mnemonic');
+        language ? null : reject('请填写你的 language');
+        passwd ? null : reject('请填写你的 passwd');
+        coinType ? null : reject('请填写你的 coinType');
+        number ? null : reject('请填写你的 number');
+        bipNumber ? null : reject('请填写你的 bipNumber');
+        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
+        coinMark ? null : reject('请填写你的 coinMark');
+        language ? null : reject('请填写你的 language');
+        let uuid = UUID.v1();
+        console.log("uuid =", uuid)
+        let encrptWord = mnemonic.wordsToEntropy(word, language);
+        setMnemonicCode(uuid, encrptWord);
+        let seed = mnemonic.mnemonicToSeed(word, passwd);
+        console.log("seed = ", seed);
+        let addressParmas = {
+            "seed":seed,
+            "coinType":coinType,
+            "number":number,
+            "bipNumber":bipNumber,
+            "receiveOrChange":receiveOrChange,
+            "coinMark":coinMark
+        };
+        console.log("addressParmas = ", addressParmas);
+        let addrs = addr.blockchainAddress(addressParmas);
+        setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address);
+        uuid = null;
+        encrptWord = null;
+        seed = null
+        resolve({address:addrs.address});
 
     });
 };
