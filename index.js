@@ -10,7 +10,9 @@ const readline = require('readline');
 const mnemonic = require('./mnemonic/word');
 const UUID = require('uuid');
 const addr = require('./address/generateAddress');
+const csign = require('./sign/indexSign');
 const en = require('./address/encrypt');
+const decrypt = require('./sign/decrypt');
 const coin = path.join(process.cwd(), './static', 'coin.db');
 let db = new sqlite3.Database(coin);
 let key = '1234567890123456';
@@ -128,11 +130,24 @@ app.post('/create', (req, res) => {
 
 // 生成地址请求函数
 app.post('/sign', (req, res) => {
-    let { password } = req.body;
+    let { signMark, privateKey, fromAddress, contractAddress, changeAddress, sendFee, addressAmount, utxo,
+         gasPrice, gasLimit, nonce, decimal, password} = req.body;
     let obj = {
+        signMark:signMark,
+        privateKey:privateKey,
+        fromAddress:fromAddress,
+        contractAddress:contractAddress,
+        changeAddress:changeAddress,
+        sendFee:sendFee,
+        addressAmount:addressAmount,
+        utxo:utxo,
+        gasPrice:gasPrice,
+        gasLimit:gasLimit,
+        nonce:nonce,
+        decimal:decimal,
         password:password,
     };
-    createAddr(obj).then((e) => {
+    coinSign(obj).then((e) => {
         res.send(e)
     }).catch((e) => {
         res.send('')
@@ -159,7 +174,6 @@ const createAddr = (data) => {
                     "receiveOrChange":"1",
                     "coinMark":"BTC"
                 };
-
                 let ethParmas = {
                     "seed":seed,
                     "coinType":"ETH",
@@ -176,13 +190,45 @@ const createAddr = (data) => {
                     let addrData ={
                         btcAddr:btcAddr.address,
                         ethAddr:ethAddr.address
-                    }
+                    };
                     resolve({code:200, msg:"success", result:addrData});
                 }
             }
         }
     })
 };
+
+const coinSign = (data) => {
+    let { signMark, fromAddress, contractAddress, changeAddress, sendFee, addressAmount, utxo,
+        gasPrice, gasLimit, nonce, decimal, password} = data;
+    return new Promise((resolve, reject) => {
+        signMark ? null : reject('请填写你的 signMark');
+        fromAddress ? null : reject('请填写你的 fromAddress');
+        password ? null : reject('请填写你的 password');
+        getSecret(fromAddress).then((privateKey) => {
+            const signParams = {
+                signMark:signMark,
+                privateKey:privateKey,
+                fromAddress:fromAddress,
+                contractAddress:contractAddress,
+                changeAddress:changeAddress,
+                sendFee:sendFee,
+                addressAmount:addressAmount,
+                utxo:utxo,
+                gasPrice:gasPrice,
+                gasLimit:gasLimit,
+                nonce:nonce,
+                decimal:decimal,
+            };
+            console.log(signParams);
+            let signRet = csign.blockchainWalletSign(signParams);
+            resolve({code:200, msg:"success", result:signRet});
+        });
+
+    });
+};
+
+
 
 // 具体函数实现
 const words = (data) => {
@@ -308,7 +354,7 @@ const setAddressKey = (uuid, secret, address) => {
             reject(e.message);
         }
     });
-}
+};
 
 const getWords = (sequence) => {
     return new Promise((resolve, reject) => {
@@ -320,6 +366,29 @@ const getWords = (sequence) => {
                         let code = res[0].mnemonic_code;
                         resolve(code);
                         code = null;
+                        db = null
+                    }else{
+                        reject('错误：数据库没有查找到支付地址');
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const getSecret = (fromAddr) => {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT `secret` FROM `account` WHERE `address` = '" + fromAddr + "' LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let privateKey = decrypt(key, iv, res[0].secret);
+                        resolve(privateKey);
+                        privateKey = null;
                         db = null
                     }else{
                         reject('错误：数据库没有查找到支付地址');
