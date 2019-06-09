@@ -48,7 +48,7 @@ let app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }))
 
-// 接口请求
+// 生成助记词 --1
 app.post('/mnemonic', (req, res) => {
     let { number, language,  passwd } = req.body;
     let obj = {
@@ -63,6 +63,7 @@ app.post('/mnemonic', (req, res) => {
     })
 });
 
+// 导出助记词 --2
 app.post('/export', (req, res) => {
     let {sequence, language} = req.body;
     let obj = {
@@ -76,6 +77,21 @@ app.post('/export', (req, res) => {
     })
 });
 
+
+// 单个私钥导出
+app.post('/singleExport', (req, res) => {
+    let {address} = req.body;
+    let obj = {
+        address:address
+    };
+    singleExportKey(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+// 生成单个币地址 --4
 app.post('/address', (req, res) => {
     let {sequence, coinType, number, bipNumber, receiveOrChange, coinMark, language, passwd} = req.body;
     let obj = {
@@ -95,6 +111,25 @@ app.post('/address', (req, res) => {
     })
 });
 
+// 生成本钱包支持的所有币种地址--5
+app.post('/allAddress', (req, res) => {
+    let {sequence, number, bipNumber, receiveOrChange, language, passwd} = req.body;
+    let obj = {
+        sequence:sequence,
+        number:number,
+        bipNumber:bipNumber,
+        receiveOrChange:receiveOrChange,
+        language:language,
+        passwd:passwd,
+    };
+    generateAllAddr(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+// 导入助记词生成单个地址--6
 app.post('/import', (req, res) => {
     let {mnemonic, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} = req.body;
     let obj = {
@@ -106,7 +141,7 @@ app.post('/import', (req, res) => {
         bipNumber:bipNumber,
         receiveOrChange:receiveOrChange,
         coinMark:coinMark
-    }
+    };
     importMnemonic(obj).then((e) => {
         res.send(e)
     }).catch((e) => {
@@ -114,7 +149,25 @@ app.post('/import', (req, res) => {
     })
 });
 
-// 生成地址请求函数
+// 导入助记词生成该钱包支持的所有币种的地址--6
+app.post('/importAll', (req, res) => {
+    let {mnemonic, language, passwd, number, bipNumber, receiveOrChange} = req.body;
+    let obj = {
+        word:mnemonic,
+        language:language,
+        passwd:passwd,
+        number:number,
+        bipNumber:bipNumber,
+        receiveOrChange:receiveOrChange,
+    };
+    importMnemonicAll(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+// umi 专用接口
 app.post('/create', (req, res) => {
     let { password } = req.body;
     let obj = {
@@ -125,10 +178,9 @@ app.post('/create', (req, res) => {
     }).catch((e) => {
         res.send('')
     })
-
 });
 
-// 生成地址请求函数
+// umi 专用接口
 app.post('/sign', (req, res) => {
     let { signMark, privateKey, fromAddress, contractAddress, changeAddress, sendFee, addressAmount, utxo,
          gasPrice, gasLimit, nonce, decimal, password} = req.body;
@@ -152,18 +204,74 @@ app.post('/sign', (req, res) => {
     }).catch((e) => {
         res.send('')
     })
-
 });
+
+// generateAllAddr
+const generateAllAddr = (data) => {
+    let {sequence, number, bipNumber, receiveOrChange, language, passwd} = data;
+    return new Promise((resolve, reject) => {
+        sequence ? null : reject('请填写你的 sequence');
+        number ? null : reject('请填写你的 number');
+        bipNumber ? null : reject('请填写你的 bipNumber');
+        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
+        language ? null : reject('请填写你的 language');
+        passwd ? null : reject('请填写你的 passwd');
+
+        getWords(sequence).then((mnemonicCode) => {
+            let words = mnemonic.entropyToWords(mnemonicCode, language);
+            let seed = mnemonic.mnemonicToSeed(words, passwd);
+            let btcParmas = {
+                "seed":seed,
+                "coinType":"BTC",
+                "number":number,
+                "bipNumber":bipNumber,
+                "receiveOrChange":receiveOrChange,
+                "coinMark":"BTC"
+            };
+
+            let ethParmas = {
+                "seed":seed,
+                "coinType":"ETH",
+                "number":number,
+                "coinMark":"ETH"
+            };
+            let btcAddr = addr.blockchainAddress(btcParmas);
+            let ethAddr = addr.blockchainAddress(ethParmas);
+            if(ethAddr != null && btcAddr != null) {
+                setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
+                setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                let addrData ={
+                    btcAddr:btcAddr.address,
+                    ethAddr:ethAddr.address
+                };
+                resolve({code:200, msg:"success", result:addrData});
+            }
+        }).catch((e) => {
+            reject(e.message)
+        })
+
+    });
+};
+
+const singleExportKey = (data) => {
+    let { address } = data;
+    return new Promise((resolve, reject) => {
+        address ? null : reject('请填写你的 address');
+        getSecret(address).then((privateKey) => {
+            let result = {privateKey:privateKey};
+            resolve({code:200, msg:"success", result:result});
+        });
+
+    });
+};
 
 // 一次行地址生成函数实现
 const createAddr = (data) => {
     let { password } = data;
-    console.log("password = ", password);
     return new Promise((resolve, reject) => {
         password ? null : reject('请填写你的 password');
         let words = mnemonic.createHelpWord(12, "english");
         if(words != null) {
-            console.log("words = ", words);
             let seed = mnemonic.mnemonicToSeed(words, password);
             if(seed != null) {
                 let btcParmas = {
@@ -228,8 +336,6 @@ const coinSign = (data) => {
     });
 };
 
-
-
 // 具体函数实现
 const words = (data) => {
     let { number, language, passwd } = data;
@@ -241,7 +347,8 @@ const words = (data) => {
         let words = mnemonic.createHelpWord(number, language);
         let encrptWord = mnemonic.wordsToEntropy(words, language);
         setMnemonicCode(uid, encrptWord);
-        resolve({sequence:uid, mnemonic:words});
+        let result = {sequence:uid, mnemonic:words};
+        resolve({code:200, msg:"success", result:result});
     });
 };
 
@@ -253,7 +360,8 @@ const exportWord = (data) => {
         getWords(sequence).then((mnemonicCode) => {
             let words = mnemonic.entropyToWords(mnemonicCode, language);
             mnemonicCode = null;
-            resolve({uuid:sequence, word:words});
+            let result = {uuid:sequence, word:words}
+            resolve({code:200, msg:"success", result:result});
         }).catch((e) => {
             reject(e.message)
         })
@@ -290,12 +398,59 @@ const generateAddr = (data) => {
             mnemonicCode = null;
             words = null;
             seed = null
-            resolve({address:addrs.address});
+            let result = { address:addrs.address, privateKey:addrs.privateKey };
+            resolve({code:200, msg:"success", reslut:result});
         }).catch((e) => {
             reject(e.message)
         })
     });
 };
+
+//
+const importMnemonicAll = (data) => {
+    let {word, language, passwd, number, bipNumber, receiveOrChange} =data;
+    return new Promise((resolve, reject) => {
+        word ? null : reject('请填写你的 mnemonic');
+        language ? null : reject('请填写你的 language');
+        passwd ? null : reject('请填写你的 passwd');
+        number ? null : reject('请填写你的 number');
+        bipNumber ? null : reject('请填写你的 bipNumber');
+        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
+        language ? null : reject('请填写你的 language');
+        let uuid = UUID.v1();
+        let encrptWord = mnemonic.wordsToEntropy(word, language);
+        let seed = mnemonic.mnemonicToSeed(word, passwd);
+
+        let btcParmas = {
+            "seed":seed,
+            "coinType":"BTC",
+            "number":number,
+            "bipNumber":bipNumber,
+            "receiveOrChange":receiveOrChange,
+            "coinMark":"BTC"
+        };
+
+        let ethParmas = {
+            "seed":seed,
+            "coinType":"ETH",
+            "number":number,
+            "coinMark":"ETH"
+        };
+
+        let btcAddr = addr.blockchainAddress(btcParmas);
+        let ethAddr = addr.blockchainAddress(ethParmas);
+        if(ethAddr != null && btcAddr != null) {
+            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
+            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+            let addrData ={
+                btcAddr:btcAddr.address,
+                ethAddr:ethAddr.address
+            };
+            resolve({code:200, msg:"success", result:addrData});
+        }
+    });
+};
+
 
 const importMnemonic = (data) => {
     let {word, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} =data;
@@ -328,8 +483,9 @@ const importMnemonic = (data) => {
         setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address);
         uuid = null;
         encrptWord = null;
-        seed = null
-        resolve({address:addrs.address});
+        seed = null;
+        let result = {address:addrs.address, privateKey:addrs.privateKey};
+        resolve({code:200, msg:"success", result:result});
 
     });
 };
