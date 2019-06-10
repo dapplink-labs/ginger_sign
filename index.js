@@ -240,11 +240,18 @@ const generateAllAddr = (data) => {
             if(ethAddr != null && btcAddr != null) {
                 setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
                 setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
-                let addrData ={
-                    btcAddr:btcAddr.address,
-                    ethAddr:ethAddr.address
+                let btcData ={
+                    address:btcAddr.address,
+                    privateKey:btcAddr.privateKey
                 };
-                resolve({code:200, msg:"success", result:addrData});
+                let ethData = {
+                    address:ethAddr.address,
+                    privateKey:ethAddr.privateKey
+                };
+
+                let result = {btc:btcData, eth:ethData};
+
+                resolve({code:200, msg:"success", result:result});
             }
         }).catch((e) => {
             reject(e.message)
@@ -360,7 +367,7 @@ const exportWord = (data) => {
         getWords(sequence).then((mnemonicCode) => {
             let words = mnemonic.entropyToWords(mnemonicCode, language);
             mnemonicCode = null;
-            let result = {uuid:sequence, word:words}
+            let result = {sequence:sequence, mnemonic:words}
             resolve({code:200, msg:"success", result:result});
         }).catch((e) => {
             reject(e.message)
@@ -442,11 +449,10 @@ const importMnemonicAll = (data) => {
         if(ethAddr != null && btcAddr != null) {
             setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
             setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
-            let addrData ={
-                btcAddr:btcAddr.address,
-                ethAddr:ethAddr.address
-            };
-            resolve({code:200, msg:"success", result:addrData});
+            let btcAddr = {address:btcAddr.address, privateKey:btcAddr.privateKey}
+            let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
+            let result = {btc:btcAddr, eth:ethAdd}
+            resolve({code:200, msg:"success", result:result});
         }
     });
 };
