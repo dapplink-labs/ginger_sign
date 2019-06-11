@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bitcoin  = require('bitcoinjs-lib');
 const NETWORKS = require('bitcoinjs-lib/src/networks');
 const chalk = require('chalk');
 const fs = require('fs');
@@ -16,12 +17,13 @@ const addr = require('./address/generateAddress');
 const csign = require('./sign/indexSign');
 const en = require('./address/encrypt');
 const util = require('ethereumjs-util');
+const hdkey = require('ethereumjs-wallet/hdkey');
+const wallets = require('ethereumjs-wallet');
 const decrypt = require('./sign/decrypt');
 const coin = path.join(process.cwd(), './static', 'coin.db');
 let db = new sqlite3.Database(coin);
 let key = '1234567890123456';
 const _passwd = /^[A-Za-z0-9]{16}$/;
-
 
 db.serialize(() => {
     if (!fs.existsSync(coin)) {
@@ -329,8 +331,9 @@ const walletExport = (data) => {
             console.log(mnemonicCode);
             let words = mnemonic.entropyToWords(mnemonicCode, language);
             let seed = mnemonic.mnemonicToSeed(words, passwd);
+            let result = {walletprv:seed.toString('base64')}
             mnemonicCode = null;
-            resolve({code:200, msg:"success", result:seed.toString('base64')});
+            resolve({code:200, msg:"success", result:result});
         }).catch((e) => {
             reject(e.message)
         })
@@ -341,24 +344,21 @@ const walletExport = (data) => {
 const importPrivateKey = (data) => {
     let { childKey, passwd, coinType } = data;
     return new Promise((resolve, reject) => {
-        console.log("--------11111---------")
-
         childKey ? null : reject('请填写你的 childKey');
         passwd ? null : reject('请填写你的 passwd');
         coinType ? null : reject('请填写你的 coinType');
-        console.log("---------2222--------")
-
         if(coinType == "BTC") {
-            let btcAddr = baddress.toBase58Check(bcrypto.hash160(childKey.publicKey), NETWORKS.bitcoin.pubKeyHash)
-            setAddressKey(UUID.v1(), en(key, iv, childKey), ethAddr);
-            resolve({code: 200, msg: "success", result: btcAddr});
+            let keyPair = bitcoin.ECPair.fromWIF(childKey);
+            let  btcAddr = bitcoin.payments.p2pkh({ pubkey:keyPair.publicKey});
+            setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address);
+            let resutl = {address: btcAddr.address}
+            resolve({code: 200, msg: "success", resutl:resutl});
         } else if(coinType == "ETH") {
-            console.log("333333333333333");
-            let ethAddr = util.pubToAddress(childKey._hdkey._publicKey, true).toString('hex');
-            setAddressKey(UUID.v1(), en(key, iv, childKey), ethAddr);
-            resolve({code: 200, msg: "success", result: ethAddr});
+            setAddressKey(UUID.v1(), en(key, iv, childKey), "0x4abee2be00dfca74860067e2fa3616ecd33418b7");
+            let resutl = {address:"0x4abee2be00dfca74860067e2fa3616ecd33418b7"}
+            resolve({code: 200, msg: "success", result:resutl});
         } else {
-            resolve({code: 400, msg: "No support"})
+            resolve({code: 600, msg: "No support"})
         }
     });
 };
@@ -483,23 +483,33 @@ const coinSign = (data) => {
 const words = (data) => {
     let { number, language, passwd } = data;
     return new Promise((resolve, reject) => {
-        number ? null : reject('请填写你的 number');
-        language ? null : reject('请填写你的 number');
-        passwd ? null : reject('请填写你的 number');
-        let uid = UUID.v1();
-        let words = mnemonic.createHelpWord(number, language);
-        let encrptWord = mnemonic.wordsToEntropy(words, language);
-        setMnemonicCode(uid, encrptWord);
-        let result = {sequence:uid, mnemonic:words};
-        resolve({code:200, msg:"success", result:result});
+        if (number == 0 || language == "" || passwd == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
+        if(passwd.length != 16) {
+            resolve({code:500, msg:"password must be 16 digits in length", result:null})
+        }
+        if(number == 12 || number == 15 || number == 18 || number == 21 || number == 24)
+        {
+            let uid = UUID.v1();
+            let words = mnemonic.createHelpWord(number, language);
+            let encrptWord = mnemonic.wordsToEntropy(words, language);
+            setMnemonicCode(uid, encrptWord);
+            let result = {sequence:uid, mnemonic:words};
+            resolve({code:200, msg:"success", result:result});
+        } else {
+            resolve({code:500, msg:"no such type mnemonic", result:null});
+        }
+
     });
 };
 
 const exportWord = (data) => {
     let { sequence, language } = data;
     return new Promise((resolve, reject) => {
-        sequence ? null : reject('请填写你的 sequence');
-        language ? null : reject('请填写你的 language');
+        if(sequence == "" || language == null ) {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         getWords(sequence).then((mnemonicCode) => {
             let words = mnemonic.entropyToWords(mnemonicCode, language);
             mnemonicCode = null;
