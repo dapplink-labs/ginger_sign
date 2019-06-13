@@ -20,6 +20,8 @@ const util = require('ethereumjs-util');
 const hdkey = require('ethereumjs-wallet/hdkey');
 const wallets = require('ethereumjs-wallet');
 const decrypt = require('./sign/decrypt');
+const md5 =require("md5");
+const crypto=require('crypto');
 const coin = path.join(process.cwd(), './static', 'coin.db');
 let db = new sqlite3.Database(coin);
 let key = '1234567890123456';
@@ -27,8 +29,8 @@ const _passwd = /^[A-Za-z0-9]{16}$/;
 
 db.serialize(() => {
     if (!fs.existsSync(coin)) {
-        db.run("CREATE TABLE word(word_id varchar(128), mnemonic_code varchar(256));");
-        db.run("CREATE TABLE account(address_id varchar(128), secret varchar(256), address varchar(80));");
+        db.run("CREATE TABLE word(word_id varchar(128), mnemonic_code varchar(256), password varchar(128));");
+        db.run("CREATE TABLE account(address_id varchar(128), secret varchar(256), address varchar(80), password varchar(128));");
     }
 });
 
@@ -71,10 +73,11 @@ app.post('/mnemonic', (req, res) => {
 
 // 导出助记词 --2
 app.post('/export', (req, res) => {
-    let {sequence, language} = req.body;
+    let {sequence, language, passwd} = req.body;
     let obj = {
         sequence:sequence,
-        language:language
+        language:language,
+        passwd:passwd
     };
     exportWord(obj).then((e) => {
         res.send(e)
@@ -86,9 +89,10 @@ app.post('/export', (req, res) => {
 
 // 单个私钥导出
 app.post('/singleExport', (req, res) => {
-    let {address} = req.body;
+    let {address, passwd} = req.body;
     let obj = {
-        address:address
+        address:address,
+        passwd:passwd
     };
     singleExportKey(obj).then((e) => {
         res.send(e)
@@ -260,63 +264,89 @@ app.post('/sign', (req, res) => {
 const generateAllAddr = (data) => {
     let {sequence, number, bipNumber, receiveOrChange, language, passwd} = data;
     return new Promise((resolve, reject) => {
-        sequence ? null : reject('请填写你的 sequence');
-        number ? null : reject('请填写你的 number');
-        bipNumber ? null : reject('请填写你的 bipNumber');
-        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
-        language ? null : reject('请填写你的 language');
-        passwd ? null : reject('请填写你的 passwd');
+        if(sequence == "" || language == "" || passwd == "" || number == ""){
+            resolve({code: 400, msg: "params is null", result: null});
 
-        getWords(sequence).then((mnemonicCode) => {
-            let words = mnemonic.entropyToWords(mnemonicCode, language);
-            let seed = mnemonic.mnemonicToSeed(words, passwd);
-            let btcParmas = {
-                "seed":seed,
-                "coinType":"BTC",
-                "number":number,
-                "bipNumber":bipNumber,
-                "receiveOrChange":receiveOrChange,
-                "coinMark":"BTC"
-            };
-
-            let ethParmas = {
-                "seed":seed,
-                "coinType":"ETH",
-                "number":number,
-                "coinMark":"ETH"
-            };
-            let btcAddr = addr.blockchainAddress(btcParmas);
-            let ethAddr = addr.blockchainAddress(ethParmas);
-            if(ethAddr != null && btcAddr != null) {
-                setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-                setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
-                let btcData ={
-                    address:btcAddr.address,
-                    privateKey:btcAddr.privateKey
-                };
-                let ethData = {
-                    address:ethAddr.address,
-                    privateKey:ethAddr.privateKey
-                };
-
-                let result = {btc:btcData, eth:ethData};
-
-                resolve({code:200, msg:"success", result:result});
+        }
+        getPwdWord(sequence).then((pwd) => {
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            let lpwd = passwdStr.toUpperCase();
+            if (pwd == 100) {
+                resolve({code: 300, msg: "no such type mnemonic", result: null});
             }
-        }).catch((e) => {
-            reject(e.message)
-        })
-
+            if (pwd != lpwd) {
+                resolve({code: 600, msg: "password is wrong", result: null});
+            }
+            getWords(sequence).then((mnemonicCode) => {
+                let words = mnemonic.entropyToWords(mnemonicCode, language);
+                let seed = mnemonic.mnemonicToSeed(words, passwd);
+                let btcParmas = {
+                    "seed":seed,
+                    "coinType":"BTC",
+                    "number":number,
+                    "bipNumber":bipNumber,
+                    "receiveOrChange":receiveOrChange,
+                    "coinMark":"BTC"
+                };
+                let ethParmas = {
+                    "seed":seed,
+                    "coinType":"ETH",
+                    "number":number,
+                    "coinMark":"ETH"
+                };
+                let btcAddr = addr.blockchainAddress(btcParmas);
+                let ethAddr = addr.blockchainAddress(ethParmas);
+                if(ethAddr != null && btcAddr != null) {
+                    addrHave(ethAddr.address).then((addresss) => {
+                        if(addresss == "100") {
+                            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
+                            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                            let btcData ={
+                                address:btcAddr.address,
+                                privateKey:btcAddr.privateKey
+                            };
+                            let ethData = {
+                                address:ethAddr.address,
+                                privateKey:ethAddr.privateKey
+                            };
+                            let result = {btc:btcData, eth:ethData};
+                            resolve({code:200, msg:"success", result:result});
+                        } else {
+                            resolve({code:800, msg:"this address alread have", reslut:null});
+                        }
+                    });
+                }
+            }).catch((e) => {
+                reject(e.message)
+            })
+        });
     });
 };
 
 const singleExportKey = (data) => {
-    let { address } = data;
+    let { address, passwd } = data;
     return new Promise((resolve, reject) => {
         address ? null : reject('请填写你的 address');
-        getSecret(address).then((privateKey) => {
-            let result = {privateKey:privateKey};
-            resolve({code:200, msg:"success", result:result});
+        if (address == "" || passwd == ""){
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
+        getPwdAddr(address).then((pwd) => {
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            let lpwd = passwdStr.toUpperCase();
+            if(pwd == "100") {
+                resolve({code: 500, msg: "no this address", result: null});
+            }
+            if (pwd != lpwd) {
+                resolve({code: 600, msg: "password is wrong", result: null});
+            }
+            getSecret(address).then((privateKey) => {
+                let result = {privateKey:privateKey};
+                resolve({code:200, msg:"success", result:result});
+            });
         });
     });
 };
@@ -324,41 +354,58 @@ const singleExportKey = (data) => {
 const walletExport = (data) => {
     let {sequence, passwd, language} = data;
     return new Promise((resolve, reject) => {
-        sequence ? null : reject('请填写你的 sequence');
-        language ? null : reject('请填写你的 language');
-        passwd ? null : reject('请填写你的 passwd');
-        getWords(sequence).then((mnemonicCode) => {
-            console.log(mnemonicCode);
-            let words = mnemonic.entropyToWords(mnemonicCode, language);
-            let seed = mnemonic.mnemonicToSeed(words, passwd);
-            let result = {walletprv:seed.toString('base64')}
-            mnemonicCode = null;
-            resolve({code:200, msg:"success", result:result});
-        }).catch((e) => {
-            reject(e.message)
-        })
-
+        if (sequence == "" || language == "" || passwd == ""){
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
+        getPwdWord(sequence).then((pwd) => {
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            let lpwd = passwdStr.toUpperCase();
+            if(pwd == "100") {
+                resolve({code: 700, msg: "no this wallet", result: null});
+            }
+            if (pwd != lpwd) {
+                resolve({code: 600, msg: "password is wrong", result: null});
+            }
+            getWords(sequence).then((mnemonicCode) => {
+                console.log(mnemonicCode);
+                let words = mnemonic.entropyToWords(mnemonicCode, language);
+                let seed = mnemonic.mnemonicToSeed(words, passwd);
+                let result = {walletprv:seed.toString('base64')}
+                mnemonicCode = null;
+                resolve({code:200, msg:"success", result:result});
+            }).catch((e) => {
+                reject(e.message)
+            })
+        });
     });
 };
 
 const importPrivateKey = (data) => {
     let { childKey, passwd, coinType } = data;
     return new Promise((resolve, reject) => {
-        childKey ? null : reject('请填写你的 childKey');
-        passwd ? null : reject('请填写你的 passwd');
-        coinType ? null : reject('请填写你的 coinType');
+        if(childKey == "" || passwd == "" || coinType == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         if(coinType == "BTC") {
             let keyPair = bitcoin.ECPair.fromWIF(childKey);
-            let  btcAddr = bitcoin.payments.p2pkh({ pubkey:keyPair.publicKey});
-            setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address);
-            let resutl = {address: btcAddr.address}
-            resolve({code: 200, msg: "success", resutl:resutl});
+            let btcAddr = bitcoin.payments.p2pkh({pubkey:keyPair.publicKey});
+            addrHave(btcAddr.address).then((addresss) => {
+                if(addresss == "100") {
+                    setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address);
+                    let resutl = {address: btcAddr.address}
+                    resolve({code: 200, msg: "success", resutl:resutl});
+                } else {
+                    resolve({code:800, msg:"this address alread have", reslut:null});
+                }
+            });
         } else if(coinType == "ETH") {
             setAddressKey(UUID.v1(), en(key, iv, childKey), "0x4abee2be00dfca74860067e2fa3616ecd33418b7");
             let resutl = {address:"0x4abee2be00dfca74860067e2fa3616ecd33418b7"}
             resolve({code: 200, msg: "success", result:resutl});
         } else {
-            resolve({code: 600, msg: "No support"})
+            resolve({code: 900, msg: "no support cointype"})
         }
     });
 };
@@ -366,10 +413,9 @@ const importPrivateKey = (data) => {
 const importRootKey = (data) => {
     let { rootkey, passwd, number, receiveOrChange } = data;
     return new Promise((resolve, reject) => {
-        rootkey ? null : reject('请填写你的 rootkey');
-        passwd ? null : reject('请填写你的 passwd');
-        number ? null : reject('请填写你的 number');
-        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
+        if(rootkey == "" || passwd == "" || number == "" || receiveOrChange == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         let retBuffer = Buffer.from(rootkey, 'base64')
         let btcParmas = {
             "seed":retBuffer,
@@ -390,29 +436,35 @@ const importRootKey = (data) => {
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
         if(ethAddr != null && btcAddr != null) {
-            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
-            let btcData ={
-                address:btcAddr.address,
-                privateKey:btcAddr.privateKey
-            };
-            let ethData = {
-                address:ethAddr.address,
-                privateKey:ethAddr.privateKey
-            };
-
-            let result = {btc:btcData, eth:ethData};
-
-            resolve({code:200, msg:"success", result:result});
+            addrHave(btcAddr.address).then((addresss) => {
+                if(addresss == "100") {
+                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
+                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                    let btcData ={
+                        address:btcAddr.address,
+                        privateKey:btcAddr.privateKey
+                    };
+                    let ethData = {
+                        address:ethAddr.address,
+                        privateKey:ethAddr.privateKey
+                    };
+                    let result = {btc:btcData, eth:ethData};
+                    resolve({code:200, msg:"success", result:result});
+                } else {
+                    resolve({code:800, msg:"this address alread have", reslut:null});
+                }
+            });
         }
     });
 };
 
-// 一次行地址生成函数实现
+// 此接口专供 umi 使用
 const createAddr = (data) => {
     let { password } = data;
     return new Promise((resolve, reject) => {
-        password ? null : reject('请填写你的 password');
+        if(password == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         let words = mnemonic.createHelpWord(12, "english");
         if(words != null) {
             let seed = mnemonic.mnemonicToSeed(words, password);
@@ -449,14 +501,18 @@ const createAddr = (data) => {
     })
 };
 
+// 此接口专供 umi 使用
 const coinSign = (data) => {
     let { signMark, fromAddress, contractAddress, changeAddress, sendFee, addressAmount, utxo,
         gasPrice, gasLimit, nonce, decimal, password} = data;
     return new Promise((resolve, reject) => {
-        signMark ? null : reject('请填写你的 signMark');
-        fromAddress ? null : reject('请填写你的 fromAddress');
-        password ? null : reject('请填写你的 password');
+        if(signMark == "" || fromAddress == "" || password == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         getSecret(fromAddress).then((privateKey) => {
+            if(privateKey == "100") {
+                resolve({code:1000, msg:"no this private key", result:null});
+            }
             const signParams = {
                 signMark:signMark,
                 privateKey:privateKey,
@@ -473,9 +529,12 @@ const coinSign = (data) => {
             };
             console.log(signParams);
             let signRet = csign.blockchainWalletSign(signParams);
-            resolve({code:200, msg:"success", result:signRet});
+            if(signRet != "") {
+                resolve({code:200, msg:"success", result:signRet});
+            } else {
+                resolve({code:1001, msg:"sign fail", result:null});
+            }
         });
-
     });
 };
 
@@ -486,92 +545,129 @@ const words = (data) => {
         if (number == 0 || language == "" || passwd == "") {
             resolve({code:400, msg:"parameter is null", result:null});
         }
-        if(passwd.length != 16) {
-            resolve({code:500, msg:"password must be 16 digits in length", result:null})
-        }
         if(number == 12 || number == 15 || number == 18 || number == 21 || number == 24)
         {
             let uid = UUID.v1();
             let words = mnemonic.createHelpWord(number, language);
             let encrptWord = mnemonic.wordsToEntropy(words, language);
-            setMnemonicCode(uid, encrptWord);
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            var lpwd =passwdStr.toUpperCase();
+            setMnemonicCode(uid, encrptWord, lpwd);
             let result = {sequence:uid, mnemonic:words};
             resolve({code:200, msg:"success", result:result});
         } else {
-            resolve({code:500, msg:"no such type mnemonic", result:null});
+            resolve({code:300, msg:"no such type mnemonic", result:null});
         }
 
     });
 };
 
 const exportWord = (data) => {
-    let { sequence, language } = data;
+    let { sequence, language, passwd } = data;
     return new Promise((resolve, reject) => {
-        if(sequence == "" || language == null ) {
+        if(sequence == "" || language == "" || passwd =="" ) {
             resolve({code:400, msg:"parameter is null", result:null});
         }
-        getWords(sequence).then((mnemonicCode) => {
-            let words = mnemonic.entropyToWords(mnemonicCode, language);
-            mnemonicCode = null;
-            let result = {sequence:sequence, mnemonic:words}
-            resolve({code:200, msg:"success", result:result});
-        }).catch((e) => {
-            reject(e.message)
-        })
+        console.log(
+            data
+        )
+        getPwdWord(sequence).then((pwd) => {
+            console.log(pwd)
+            if(pwd == "100") {
+                resolve({code:300, msg:"no such type mnemonic", result:null});
+            }
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            var lpwd =passwdStr.toUpperCase();
+            if(lpwd == pwd) {
+                getWords(sequence).then((mnemonicCode) => {
+                    let words = mnemonic.entropyToWords(mnemonicCode, language);
+                    mnemonicCode = null;
+                    let result = {sequence:sequence, mnemonic:words}
+                    resolve({code:200, msg:"success", result:result});
+                }).catch((e) => {
+                    reject(e.message)
+                })
+            } else {
+                resolve({code:600, msg:"password is wrong", result:null});
+            }
+        });
+
+
+
+
     })
 };
 
 const generateAddr = (data) => {
     let {sequence, coinType, number, bipNumber, receiveOrChange, coinMark, language, passwd} =data;
     return new Promise((resolve, reject) => {
-        console.log("data = ", data)
-        sequence ? null : reject('请填写你的 sequence');
-        coinType ? null : reject('请填写你的 coinType');
-        number ? null : reject('请填写你的 number');
-        bipNumber ? null : reject('请填写你的 bipNumber');
-        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
-        coinMark ? null : reject('请填写你的 coinMark');
-        language ? null : reject('请填写你的 language');
-        passwd ? null : reject('请填写你的 passwd');
-        getWords(sequence).then((mnemonicCode) => {
-            let words = mnemonic.entropyToWords(mnemonicCode, language);
-            let seed = mnemonic.mnemonicToSeed(words);
-            console.log("seed = ", seed);
-            let addressParmas = {
-                "seed":seed,
-                "coinType":coinType,
-                "number":number,
-                "bipNumber":bipNumber,
-                "receiveOrChange":receiveOrChange,
-                "coinMark":coinMark
-            };
-            let addrs = addr.blockchainAddress(addressParmas);
-            console.log("addr = ", addrs.address);
-            setAddressKey(UUID.v1(), en(key, iv, addrs.privateKey), addrs.address);
-            mnemonicCode = null;
-            words = null;
-            seed = null
-            let result = { address:addrs.address, privateKey:addrs.privateKey };
-            resolve({code:200, msg:"success", reslut:result});
+        if(sequence == "" || coinType == "" || coinMark == "" || language == "" || passwd == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
+        getPwdWord(sequence).then((pwd) => {
+            let md5 = crypto.createHash("md5");
+            md5.update(passwd);
+            let passwdStr = md5.digest('hex');
+            let lpwd =passwdStr.toUpperCase();
+            if(pwd == 100) {
+                resolve({code:300, msg:"no such type mnemonic", result:null});
+            }
+            if(pwd != lpwd) {
+                resolve({code:600, msg:"password is wrong", result:null});
+            }
+            getWords(sequence).then((mnemonicCode) => {
+                let words = mnemonic.entropyToWords(mnemonicCode, language);
+                let seed = mnemonic.mnemonicToSeed(words);
+                let addressParmas = {
+                    "seed":seed,
+                    "coinType":coinType,
+                    "number":number,
+                    "bipNumber":bipNumber,
+                    "receiveOrChange":receiveOrChange,
+                    "coinMark":coinMark
+                };
+                let addrs = addr.blockchainAddress(addressParmas);
+                if(addrs.address != "") {
+                    addrHave(addrs.address).then((addresss) => {
+                        if(addresss == "100") {
+                            setAddressKey(UUID.v1(), en(key, iv, addrs.privateKey), addrs.address, lpwd);
+                            mnemonicCode = null;
+                            words = null;
+                            seed = null;
+                            let result = { address:addrs.address, privateKey:addrs.privateKey };
+                            resolve({code:200, msg:"success", reslut:result});
+                        } else {
+                            resolve({code:800, msg:"this address alread have", reslut:null});
+                        }
+                    })
+                }
+
+
+            }).catch((e) => {
+                reject(e.message)
+            })
         }).catch((e) => {
             reject(e.message)
-        })
+        });
     });
 };
 
-//
 const importMnemonicAll = (data) => {
     let {word, language, passwd, number, bipNumber, receiveOrChange} =data;
     return new Promise((resolve, reject) => {
-        word ? null : reject('请填写你的 mnemonic');
-        language ? null : reject('请填写你的 language');
-        passwd ? null : reject('请填写你的 passwd');
-        number ? null : reject('请填写你的 number');
-        bipNumber ? null : reject('请填写你的 bipNumber');
-        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
-        language ? null : reject('请填写你的 language');
+        if(word == "" || language == "" || passwd == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         let uuid = UUID.v1();
         let encrptWord = mnemonic.wordsToEntropy(word, language);
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        var lpwd =passwdStr.toUpperCase();
         let seed = mnemonic.mnemonicToSeed(word);
         let btcParmas = {
             "seed":seed,
@@ -588,15 +684,22 @@ const importMnemonicAll = (data) => {
             "number":number,
             "coinMark":"ETH"
         };
+
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
-        setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-        setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
-        let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey}
-        let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
-        let result = {btc:btcAdd, eth:ethAdd};
-        console.log("result = ", result);
-        resolve({code:200, msg:"success", result:result});
+        addrHave(btcAddr.address).then((addresss) => {
+            if(addresss == "100") {
+                setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey}
+                let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
+                let result = {btc:btcAdd, eth:ethAdd};
+                console.log("result = ", result);
+                resolve({code:200, msg:"success", result:result});
+            } else {
+                resolve({code:800, msg:"this address alread have", reslut:null});
+            }
+        });
     });
 };
 
@@ -604,19 +707,16 @@ const importMnemonicAll = (data) => {
 const importMnemonic = (data) => {
     let {word, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} =data;
     return new Promise((resolve, reject) => {
-        word ? null : reject('请填写你的 mnemonic');
-        language ? null : reject('请填写你的 language');
-        passwd ? null : reject('请填写你的 passwd');
-        coinType ? null : reject('请填写你的 coinType');
-        number ? null : reject('请填写你的 number');
-        bipNumber ? null : reject('请填写你的 bipNumber');
-        receiveOrChange ? null : reject('请填写你的 receiveOrChange');
-        coinMark ? null : reject('请填写你的 coinMark');
-        language ? null : reject('请填写你的 language');
+        if(word == "" || language == "" || passwd == "" || number == "" || coinType == "" || coinMark == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
         let uuid = UUID.v1();
-        console.log("uuid =", uuid);
         let encrptWord = mnemonic.wordsToEntropy(word, language);
-        setMnemonicCode(uuid, encrptWord);
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        var lpwd =passwdStr.toUpperCase();
+        setMnemonicCode(uuid, encrptWord, lpwd);
         let seed = mnemonic.mnemonicToSeed(word);
         console.log("seed = ", seed);
         let addressParmas = {
@@ -627,34 +727,63 @@ const importMnemonic = (data) => {
             "receiveOrChange":receiveOrChange,
             "coinMark":coinMark
         };
-        console.log("addressParmas = ", addressParmas);
         let addrs = addr.blockchainAddress(addressParmas);
-        setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address);
-        uuid = null;
-        encrptWord = null;
-        seed = null;
-        let result = {address:addrs.address, privateKey:addrs.privateKey};
-        resolve({code:200, msg:"success", result:result});
-
+        if(addrs != "") {
+            addrHave(addrs.address).then((addresss) => {
+                if(addresss == "100") {
+                    setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address);
+                    uuid = null;
+                    encrptWord = null;
+                    seed = null;
+                    let result = {address:addrs.address, privateKey:addrs.privateKey};
+                    resolve({code:200, msg:"success", result:result});
+                } else {
+                    resolve({code:800, msg:"this address alread have", reslut:null});
+                }
+            })
+        }
     });
 };
 
-const setMnemonicCode = (uuid, seedCode) => {
+const setMnemonicCode = (uuid, seedCode, passwd) => {
     return new Promise((resolve, reject) => {
         console.log(uuid, seedCode);
         try {
-             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}');`);
+             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${passwd}');`);
         } catch (e) {
             reject(e.message);
         }
     });
 };
 
-const setAddressKey = (uuid, secret, address) => {
+const setAddressKey = (uuid, secret, address, lpwd) => {
     return new Promise((resolve, reject) => {
         console.log(uuid, secret, address);
         try {
-            db.run(`INSERT INTO account VALUES('${uuid}', '${secret}', '${address}');`);
+            db.run(`INSERT INTO account VALUES('${uuid}', '${secret}', '${address}', '${lpwd}');`);
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const getPwdWord = (sequence) => {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT password FROM word WHERE word_id = '" + sequence + "' LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let code = res[0].password;
+                        resolve(code);
+                        code = null;
+                        db = null
+                    }else{
+                        resolve("100");
+                        db = null
+                    }
+                })
+            })
         } catch (e) {
             reject(e.message);
         }
@@ -696,7 +825,54 @@ const getSecret = (fromAddr) => {
                         privateKey = null;
                         db = null
                     }else{
+                        resolve('100');
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const getPwdAddr = (fromAddr) => {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT `password` FROM `account` WHERE `address` = '" + fromAddr + "' LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let password = res[0].password;
+                        resolve(password);
+                        password = null;
+                        db = null
+                    }else{
+                        resolve("100");
                         reject('错误：数据库没有查找到支付地址');
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const addrHave = (fromAddr)=> {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT `address` FROM `account` WHERE `address` = '" + fromAddr + "' LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let addr = res.address;
+                        resolve(addr);
+                        addr = null;
+                        db = null
+                    }else{
+                        resolve("100");
                         db = null
                     }
                 })
