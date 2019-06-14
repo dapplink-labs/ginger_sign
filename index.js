@@ -328,7 +328,6 @@ const generateAllAddr = (data) => {
 const singleExportKey = (data) => {
     let { address, passwd } = data;
     return new Promise((resolve, reject) => {
-        address ? null : reject('请填写你的 address');
         if (address == "" || passwd == ""){
             resolve({code:400, msg:"parameter is null", result:null});
         }
@@ -369,7 +368,6 @@ const walletExport = (data) => {
                 resolve({code: 600, msg: "password is wrong", result: null});
             }
             getWords(sequence).then((mnemonicCode) => {
-                console.log(mnemonicCode);
                 let words = mnemonic.entropyToWords(mnemonicCode, language);
                 let seed = mnemonic.mnemonicToSeed(words, passwd);
                 let result = {walletprv:seed.toString('base64')}
@@ -527,7 +525,6 @@ const coinSign = (data) => {
                 nonce:nonce,
                 decimal:decimal,
             };
-            console.log(signParams);
             let signRet = csign.blockchainWalletSign(signParams);
             if(signRet != "") {
                 resolve({code:200, msg:"success", result:signRet});
@@ -570,11 +567,7 @@ const exportWord = (data) => {
         if(sequence == "" || language == "" || passwd =="" ) {
             resolve({code:400, msg:"parameter is null", result:null});
         }
-        console.log(
-            data
-        )
         getPwdWord(sequence).then((pwd) => {
-            console.log(pwd)
             if(pwd == "100") {
                 resolve({code:300, msg:"no such type mnemonic", result:null});
             }
@@ -595,10 +588,6 @@ const exportWord = (data) => {
                 resolve({code:600, msg:"password is wrong", result:null});
             }
         });
-
-
-
-
     })
 };
 
@@ -694,7 +683,6 @@ const importMnemonicAll = (data) => {
                 let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey}
                 let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
                 let result = {btc:btcAdd, eth:ethAdd};
-                console.log("result = ", result);
                 resolve({code:200, msg:"success", result:result});
             } else {
                 resolve({code:800, msg:"this address alread have", reslut:null});
@@ -718,7 +706,6 @@ const importMnemonic = (data) => {
         var lpwd =passwdStr.toUpperCase();
         setMnemonicCode(uuid, encrptWord, lpwd);
         let seed = mnemonic.mnemonicToSeed(word);
-        console.log("seed = ", seed);
         let addressParmas = {
             "seed":seed,
             "coinType":coinType,
@@ -747,7 +734,6 @@ const importMnemonic = (data) => {
 
 const setMnemonicCode = (uuid, seedCode, passwd) => {
     return new Promise((resolve, reject) => {
-        console.log(uuid, seedCode);
         try {
              db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${passwd}');`);
         } catch (e) {
@@ -758,7 +744,6 @@ const setMnemonicCode = (uuid, seedCode, passwd) => {
 
 const setAddressKey = (uuid, secret, address, lpwd) => {
     return new Promise((resolve, reject) => {
-        console.log(uuid, secret, address);
         try {
             db.run(`INSERT INTO account VALUES('${uuid}', '${secret}', '${address}', '${lpwd}');`);
         } catch (e) {
