@@ -156,16 +156,17 @@ app.post('/allAddress', (req, res) => {
 
 // 导入助记词生成单个地址--6
 app.post('/import', (req, res) => {
-    let {mnemonic, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} = req.body;
+    let {mnemonic, language, coinType, number, bipNumber, receiveOrChange, coinMark, passwd} = req.body;
     let obj = {
         word:mnemonic,
         language:language,
-        passwd:passwd,
         coinType:coinType,
         number:number,
         bipNumber:bipNumber,
         receiveOrChange:receiveOrChange,
-        coinMark:coinMark
+        coinMark:coinMark,
+        passwd:passwd,
+
     };
     importMnemonic(obj).then((e) => {
         res.send(e)
@@ -301,8 +302,8 @@ const generateAllAddr = (data) => {
                 if(ethAddr != null && btcAddr != null) {
                     addrHave(ethAddr.address).then((addresss) => {
                         if(addresss == "100") {
-                            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-                            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                             let btcData ={
                                 address:btcAddr.address,
                                 privateKey:btcAddr.privateKey
@@ -386,12 +387,16 @@ const importPrivateKey = (data) => {
         if(childKey == "" || passwd == "" || coinType == "") {
             resolve({code:400, msg:"parameter is null", result:null});
         }
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        let lpwd = passwdStr.toUpperCase();
         if(coinType == "BTC") {
             let keyPair = bitcoin.ECPair.fromWIF(childKey);
             let btcAddr = bitcoin.payments.p2pkh({pubkey:keyPair.publicKey});
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address);
+                    setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address, lpwd);
                     let resutl = {address: btcAddr.address}
                     resolve({code: 200, msg: "success", resutl:resutl});
                 } else {
@@ -399,7 +404,7 @@ const importPrivateKey = (data) => {
                 }
             });
         } else if(coinType == "ETH") {
-            setAddressKey(UUID.v1(), en(key, iv, childKey), "0x4abee2be00dfca74860067e2fa3616ecd33418b7");
+            setAddressKey(UUID.v1(), en(key, iv, childKey), "0x4abee2be00dfca74860067e2fa3616ecd33418b7", lpwd);
             let resutl = {address:"0x4abee2be00dfca74860067e2fa3616ecd33418b7"}
             resolve({code: 200, msg: "success", result:resutl});
         } else {
@@ -414,6 +419,12 @@ const importRootKey = (data) => {
         if(rootkey == "" || passwd == "" || number == "" || receiveOrChange == "") {
             resolve({code:400, msg:"parameter is null", result:null});
         }
+
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        let lpwd = passwdStr.toUpperCase();
+
         let retBuffer = Buffer.from(rootkey, 'base64')
         let btcParmas = {
             "seed":retBuffer,
@@ -436,8 +447,8 @@ const importRootKey = (data) => {
         if(ethAddr != null && btcAddr != null) {
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                     let btcData ={
                         address:btcAddr.address,
                         privateKey:btcAddr.privateKey
@@ -693,17 +704,21 @@ const importMnemonicAll = (data) => {
 
 
 const importMnemonic = (data) => {
-    let {word, language, passwd, coinType, number, bipNumber, receiveOrChange, coinMark} =data;
+    let {word, language, coinType, number, bipNumber, receiveOrChange, coinMark, passwd} =data;
     return new Promise((resolve, reject) => {
         if(word == "" || language == "" || passwd == "" || number == "" || coinType == "" || coinMark == "") {
             resolve({code:400, msg:"parameter is null", result:null});
         }
         let uuid = UUID.v1();
+
         let encrptWord = mnemonic.wordsToEntropy(word, language);
+
+
+
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
-        var lpwd =passwdStr.toUpperCase();
+        let lpwd =passwdStr.toUpperCase();
         setMnemonicCode(uuid, encrptWord, lpwd);
         let seed = mnemonic.mnemonicToSeed(word);
         let addressParmas = {
@@ -718,7 +733,7 @@ const importMnemonic = (data) => {
         if(addrs != "") {
             addrHave(addrs.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address);
+                    setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address, lpwd);
                     uuid = null;
                     encrptWord = null;
                     seed = null;
@@ -732,10 +747,10 @@ const importMnemonic = (data) => {
     });
 };
 
-const setMnemonicCode = (uuid, seedCode, passwd) => {
+const setMnemonicCode = (uuid, seedCode, lpwd) => {
     return new Promise((resolve, reject) => {
         try {
-             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${passwd}');`);
+             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${lpwd}');`);
         } catch (e) {
             reject(e.message);
         }
