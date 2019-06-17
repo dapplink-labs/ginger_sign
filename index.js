@@ -208,10 +208,12 @@ app.post('/importPrivateKey',(req, res) => {
 });
 
 app.post('/importRoot', (req, res) => {
-    let { rootkey, passwd, number, receiveOrChange} = req.body;
+    let { rootkey, language, passwd, bipNumber, number, receiveOrChange} = req.body;
     let obj = {
         rootkey:rootkey,
+        language:language,
         passwd:passwd,
+        bipNumber:bipNumber,
         number:number,
         receiveOrChange:receiveOrChange
     };
@@ -282,7 +284,7 @@ const generateAllAddr = (data) => {
             }
             getWords(sequence).then((mnemonicCode) => {
                 let words = mnemonic.entropyToWords(mnemonicCode, language);
-                let seed = mnemonic.mnemonicToSeed(words, passwd);
+                let seed = mnemonic.mnemonicToSeed(words);
                 let btcParmas = {
                     "seed":seed,
                     "coinType":"BTC",
@@ -402,9 +404,17 @@ const importPrivateKey = (data) => {
                 }
             });
         } else if(coinType == "ETH") {
-            setAddressKey(UUID.v1(), en(key, iv, childKey), "0x4abee2be00dfca74860067e2fa3616ecd33418b7", lpwd);
-            let resutl = {address:"0x4abee2be00dfca74860067e2fa3616ecd33418b7"}
-            resolve({code: 200, msg: "success", result:resutl});
+            let addr = util.privateToAddress(Buffer.from(childKey, "hex")).toString('hex');
+            let ethAddr = '0x' + addr;
+            addrHave(ethAddr).then((addresss) => {
+                if(addresss == "100") {
+                    setAddressKey(UUID.v1(), en(key, iv, childKey), ethAddr, lpwd);
+                    let resutl = {address:ethAddr};
+                    resolve({code: 200, msg: "success", result:resutl});
+                } else {
+                    resolve({code:800, msg:"this address alread have", reslut:null});
+                }
+            });
         } else {
             resolve({code: 900, msg: "no support cointype"})
         }
@@ -412,31 +422,30 @@ const importPrivateKey = (data) => {
 };
 
 const importRootKey = (data) => {
-    let { rootkey, passwd, number, receiveOrChange } = data;
+    let { rootkey, language, passwd, bipNumber, number, receiveOrChange } = data;
     return new Promise((resolve, reject) => {
         if(rootkey == "" || passwd == "" || number == "" || receiveOrChange == "") {
             resolve({code:400, msg:"parameter is null", result:null});
         }
-
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
         let lpwd = passwdStr.toUpperCase();
-        let retBuffer = Buffer.from(rootkey, 'base64');
+        let words = mnemonic.entropyToWords(rootkey, language);
+        let seed = mnemonic.mnemonicToSeed(words);
         let btcParmas = {
-            "seed":retBuffer,
+            "seed":seed,
             "coinType":"BTC",
-            "number":12,
-            "bipNumber":0,
-            "receiveOrChange":"1",
+            "number":number,
+            "bipNumber":bipNumber,
+            "receiveOrChange":receiveOrChange,
             "coinMark":"BTC"
         };
         let ethParmas = {
-            "seed":retBuffer,
+            "seed":seed,
             "coinType":"ETH",
-            "number":60,
-            "bipNumber":0,
-            "receiveOrChange":"1",
+            "number":number,
+            "bipNumber":bipNumber,
             "coinMark":"ETH"
         };
         let uuid = UUID.v1();
