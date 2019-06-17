@@ -369,9 +369,7 @@ const walletExport = (data) => {
                 resolve({code: 600, msg: "password is wrong", result: null});
             }
             getWords(sequence).then((mnemonicCode) => {
-                let words = mnemonic.entropyToWords(mnemonicCode, language);
-                let seed = mnemonic.mnemonicToSeed(words, passwd);
-                let result = {walletprv:seed.toString('base64')}
+                let result = {walletprv:mnemonicCode};
                 mnemonicCode = null;
                 resolve({code:200, msg:"success", result:result});
             }).catch((e) => {
@@ -424,8 +422,7 @@ const importRootKey = (data) => {
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
         let lpwd = passwdStr.toUpperCase();
-
-        let retBuffer = Buffer.from(rootkey, 'base64')
+        let retBuffer = Buffer.from(rootkey, 'base64');
         let btcParmas = {
             "seed":retBuffer,
             "coinType":"BTC",
@@ -442,6 +439,8 @@ const importRootKey = (data) => {
             "receiveOrChange":"1",
             "coinMark":"ETH"
         };
+        let uuid = UUID.v1();
+        setMnemonicCode(uuid, rootkey, lpwd);
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
         if(ethAddr != null && btcAddr != null) {
@@ -457,7 +456,7 @@ const importRootKey = (data) => {
                         address:ethAddr.address,
                         privateKey:ethAddr.privateKey
                     };
-                    let result = {btc:btcData, eth:ethData};
+                    let result = {sequence:uuid, btc:btcData, eth:ethData};
                     resolve({code:200, msg:"success", result:result});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -568,7 +567,6 @@ const words = (data) => {
         } else {
             resolve({code:300, msg:"no such type mnemonic", result:null});
         }
-
     });
 };
 
@@ -667,7 +665,8 @@ const importMnemonicAll = (data) => {
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
-        var lpwd =passwdStr.toUpperCase();
+        let lpwd =passwdStr.toUpperCase();
+        setMnemonicCode(uuid, encrptWord, lpwd);
         let seed = mnemonic.mnemonicToSeed(word);
         let btcParmas = {
             "seed":seed,
@@ -691,9 +690,9 @@ const importMnemonicAll = (data) => {
             if(addresss == "100") {
                 setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
                 setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
-                let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey}
+                let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey};
                 let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
-                let result = {btc:btcAdd, eth:ethAdd};
+                let result = {uuid:uuid, btc:btcAdd, eth:ethAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
                 resolve({code:800, msg:"this address alread have", reslut:null});
@@ -710,11 +709,7 @@ const importMnemonic = (data) => {
             resolve({code:400, msg:"parameter is null", result:null});
         }
         let uuid = UUID.v1();
-
         let encrptWord = mnemonic.wordsToEntropy(word, language);
-
-
-
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
