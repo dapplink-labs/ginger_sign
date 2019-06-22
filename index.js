@@ -30,7 +30,7 @@ const _passwd = /^[A-Za-z0-9]{16}$/;
 db.serialize(() => {
     if (!fs.existsSync(coin)) {
         db.run("CREATE TABLE word(word_id varchar(128), mnemonic_code varchar(256), password varchar(128));");
-        db.run("CREATE TABLE account(address_id varchar(128), secret varchar(256), address varchar(80), password varchar(128));");
+        db.run("CREATE TABLE account(address_id varchar(128), word_id varchar(128), secret varchar(256), address varchar(80), password varchar(128));");
     }
 });
 
@@ -224,6 +224,22 @@ app.post('/importRoot', (req, res) => {
     })
 });
 
+// 删除钱包
+app.post('/delete', (req, res)=> {
+    let {wmark, sequence, passwd}  = req.body;
+    let obj = {
+        wmark:wmark,
+        sequence:sequence,
+        passwd:passwd,
+    };
+    deleteWallet(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+
 // umi 专用接口
 app.post('/create', (req, res) => {
     let { password } = req.body;
@@ -262,6 +278,8 @@ app.post('/sign', (req, res) => {
         res.send('')
     })
 });
+
+
 
 // generateAllAddr
 const generateAllAddr = (data) => {
@@ -304,8 +322,8 @@ const generateAllAddr = (data) => {
                 if(ethAddr != null && btcAddr != null) {
                     addrHave(ethAddr.address).then((addresss) => {
                         if(addresss == "100") {
-                            setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                            setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                            setAddressKey(UUID.v1(), sequence, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                            setAddressKey(UUID.v1(), sequence, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                             let btcData ={
                                 address:btcAddr.address,
                                 privateKey:btcAddr.privateKey
@@ -396,8 +414,9 @@ const importPrivateKey = (data) => {
             let btcAddr = bitcoin.payments.p2pkh({pubkey:keyPair.publicKey});
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(UUID.v1(), en(key, iv, childKey), btcAddr.address, lpwd);
-                    let resutl = {address: btcAddr.address}
+                    let uid = UUID.v1();
+                    setAddressKey(uid, uid, en(key, iv, childKey), btcAddr.address, lpwd);
+                    let resutl = {sequence:uid, address:btcAddr.address}
                     resolve({code: 200, msg: "success", resutl:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -408,8 +427,9 @@ const importPrivateKey = (data) => {
             let ethAddr = '0x' + addr;
             addrHave(ethAddr).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(UUID.v1(), en(key, iv, childKey), ethAddr, lpwd);
-                    let resutl = {address:ethAddr};
+                    let uid = UUID.v1();
+                    setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
+                    let resutl = {sequence:uid, address:ethAddr};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -455,8 +475,8 @@ const importRootKey = (data) => {
         if(ethAddr != null && btcAddr != null) {
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                    setAddressKey(UUID.v1(), uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                    setAddressKey(UUID.v1(), uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                     let btcData ={
                         address:btcAddr.address,
                         privateKey:btcAddr.privateKey
@@ -505,8 +525,8 @@ const createAddr = (data) => {
                 let btcAddr = addr.blockchainAddress(btcParmas);
                 let ethAddr = addr.blockchainAddress(ethParmas);
                 if(ethAddr != null && ethAddr != null) {
-                    setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address);
-                    setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address);
+                    setAddressKey(UUID.v1(), "", en(key, iv, btcAddr.privateKey), btcAddr.address);
+                    setAddressKey(UUID.v1(), "", en(key, iv, ethAddr.privateKey), ethAddr.address);
                     let addrData ={
                         btcAddr:btcAddr.address,
                         ethAddr:ethAddr.address
@@ -641,7 +661,7 @@ const generateAddr = (data) => {
                 if(addrs.address != "") {
                     addrHave(addrs.address).then((addresss) => {
                         if(addresss == "100") {
-                            setAddressKey(UUID.v1(), en(key, iv, addrs.privateKey), addrs.address, lpwd);
+                            setAddressKey(UUID.v1(), sequence, en(key, iv, addrs.privateKey), addrs.address, lpwd);
                             mnemonicCode = null;
                             words = null;
                             seed = null;
@@ -697,8 +717,8 @@ const importMnemonicAll = (data) => {
         let ethAddr = addr.blockchainAddress(ethParmas);
         addrHave(btcAddr.address).then((addresss) => {
             if(addresss == "100") {
-                setAddressKey(UUID.v1(), en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                setAddressKey(UUID.v1(), en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                setAddressKey(UUID.v1(), uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                setAddressKey(UUID.v1(), uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                 let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey};
                 let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
                 let result = {uuid:uuid, btc:btcAdd, eth:ethAdd};
@@ -737,7 +757,7 @@ const importMnemonic = (data) => {
         if(addrs != "") {
             addrHave(addrs.address).then((addresss) => {
                 if(addresss == "100") {
-                    setAddressKey(uuid, en(key, iv, addrs.privateKey), addrs.address, lpwd);
+                    setAddressKey(uuid, uuid, en(key, iv, addrs.privateKey), addrs.address, lpwd);
                     uuid = null;
                     encrptWord = null;
                     seed = null;
@@ -747,6 +767,41 @@ const importMnemonic = (data) => {
                     resolve({code:800, msg:"this address alread have", reslut:null});
                 }
             })
+        }
+    });
+};
+
+
+const deleteWallet = (data) => {
+    let {wmark, sequence, passwd} =data;
+    return new Promise((resolve, reject) => {
+        if(wmark == "" || sequence == "" || passwd == "") {
+            resolve({code:400, msg:"parameter is null", result:null});
+        }
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        let lpwd =passwdStr.toUpperCase();
+        if (wmark == "ALL") {
+            getPwdWord(sequence).then((pwd) => {
+                if (pwd == 100) {
+                    resolve({code: 300, msg: "no such type mnemonic", result: null});
+                }
+                if (pwd != lpwd) {
+                    resolve({code: 600, msg: "password is wrong", result: null});
+                }
+                deletSeqWord(sequence);
+                deleteSeqAccount(sequence);
+                resolve({code: 200, msg: "delete wallet success"});
+            })
+        } else if (wmark == "BTC") {
+            deleteSeqAccount(sequence);
+            resolve({code: 200, msg: "delete wallet success"});
+        } else if(wmark == "ETH") {
+            deleteSeqAccount(sequence);
+            resolve({code: 200, msg: "delete wallet success"});
+        } else {
+            resolve({code:300, msg:"no such wallet", result:null});
         }
     });
 };
@@ -761,10 +816,30 @@ const setMnemonicCode = (uuid, seedCode, lpwd) => {
     });
 };
 
-const setAddressKey = (uuid, secret, address, lpwd) => {
+const setAddressKey = (uuid, wid, secret, address, lpwd) => {
     return new Promise((resolve, reject) => {
         try {
-            db.run(`INSERT INTO account VALUES('${uuid}', '${secret}', '${address}', '${lpwd}');`);
+            db.run(`INSERT INTO account VALUES('${uuid}', '${wid}', '${secret}', '${address}', '${lpwd}');`);
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const deleteSeqAccount = (sequence)=> {
+    return new Promise((resolve, reject) => {
+        try {
+            db.run("delete from account WHERE word_id = '" + sequence + "';");
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const deletSeqWord = (sequence)=> {
+    return new Promise((resolve, reject) => {
+        try {
+            db.run("delete from word WHERE word_id = '" + sequence + "';");
         } catch (e) {
             reject(e.message);
         }
