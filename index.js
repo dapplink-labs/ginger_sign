@@ -332,7 +332,12 @@ const generateAllAddr = (data) => {
                                 address:ethAddr.address,
                                 privateKey:ethAddr.privateKey
                             };
-                            let result = {btc:btcData, eth:ethData};
+                            let eosData = {
+                                ddress:"xqcceoswasaswsdssdsdssaqs",
+                                tag:"5lea36"
+                            };
+
+                            let result = {btc:btcData, eth:ethData, eos:eosData};
                             resolve({code:200, msg:"success", result:result});
                         } else {
                             resolve({code:800, msg:"this address alread have", reslut:null});
@@ -672,8 +677,6 @@ const generateAddr = (data) => {
                         }
                     })
                 }
-
-
             }).catch((e) => {
                 reject(e.message)
             })
@@ -713,6 +716,11 @@ const importMnemonicAll = (data) => {
             "coinMark":"ETH"
         };
 
+        let eosData = {
+            ddress:"xqcceoswasaswsdssdsdssaqs",
+            tag:"5lea36"
+        };
+
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
         addrHave(btcAddr.address).then((addresss) => {
@@ -721,7 +729,8 @@ const importMnemonicAll = (data) => {
                 setAddressKey(UUID.v1(), uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                 let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey};
                 let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
-                let result = {uuid:uuid, btc:btcAdd, eth:ethAdd};
+                let eosAdd = {address:eosData.ddress, tag:eosData.tag}
+                let result = {uuid:uuid, btc:btcAdd, eth:ethAdd, eos:eosAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
                 resolve({code:800, msg:"this address alread have", reslut:null});
