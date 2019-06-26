@@ -321,23 +321,53 @@ const generateAllAddr = (data) => {
                 let ethAddr = addr.blockchainAddress(ethParmas);
                 if(ethAddr != null && btcAddr != null) {
                     addrHave(ethAddr.address).then((addresss) => {
+                        let uiid = UUID.v1();
                         if(addresss == "100") {
-                            setAddressKey(UUID.v1(), sequence, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                            setAddressKey(UUID.v1(), sequence, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                            setAddressKey(uiid, sequence, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                            setAddressKey(uiid, sequence, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
                             let btcData ={
+                                addrId:uiid,
+                                chainName:"Bitcoin",
+                                coinName:"BTC",
                                 address:btcAddr.address,
+                                changeAddr:btcAddr.address,
                                 privateKey:btcAddr.privateKey
                             };
                             let ethData = {
+                                addrId:uiid,
+                                chainName:"Ethereum",
+                                coinName:"ETH",
                                 address:ethAddr.address,
                                 privateKey:ethAddr.privateKey
                             };
+
+                            let tbsvData = {
+                                addrId:uiid,
+                                chainName:"Ethereum",
+                                coinName:"TBSV",
+                                contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                address:ethAddr.address,
+                                privateKey:ethAddr.privateKey
+                            };
+
+                            let usdtData = {
+                                addrId:uiid,
+                                chainName:"Ethereum",
+                                coinName:"USDT",
+                                contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                                address:ethAddr.address,
+                                privateKey:ethAddr.privateKey
+                            };
+
                             let eosData = {
+                                addrId:uiid,
+                                chainName:"Eos",
+                                coinName:"EOS",
                                 ddress:"xqcceoswasaswsdssdsdssaqs",
                                 tag:"5lea36"
                             };
 
-                            let result = {btc:btcData, eth:ethData, eos:eosData};
+                            let result = {btc:btcData, eth:ethData, tbsv:tbsvData, usdt:usdtData, eos:eosData};
                             resolve({code:200, msg:"success", result:result});
                         } else {
                             resolve({code:800, msg:"this address alread have", reslut:null});
@@ -421,7 +451,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), btcAddr.address, lpwd);
-                    let resutl = {sequence:uid, address:btcAddr.address}
+                    let resutl = {sequence:uid, chainName:"Bitcoin", coinName:"BTC",address:btcAddr.address, privateKey:childKey}
                     resolve({code: 200, msg: "success", resutl:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -434,7 +464,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
-                    let resutl = {sequence:uid, address:ethAddr};
+                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"ETH", address:ethAddr, privateKey:childKey};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -725,12 +755,52 @@ const importMnemonicAll = (data) => {
         let ethAddr = addr.blockchainAddress(ethParmas);
         addrHave(btcAddr.address).then((addresss) => {
             if(addresss == "100") {
-                setAddressKey(UUID.v1(), uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                setAddressKey(UUID.v1(), uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
-                let btcAdd = {address:btcAddr.address, privateKey:btcAddr.privateKey};
-                let ethAdd ={address:ethAddr.address, privateKey:ethAddr.privateKey};
-                let eosAdd = {address:eosData.ddress, tag:eosData.tag}
-                let result = {uuid:uuid, btc:btcAdd, eth:ethAdd, eos:eosAdd};
+                let uuiid = UUID.v1();
+                setAddressKey(uuiid, uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
+                setAddressKey(uuiid, uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                let btcAdd = {
+                    addrId:uuiid,
+                    chainName:"Bitcoin",
+                    coinName:"BTC",
+                    address:btcAddr.address,
+                    changeAddr:btcAddr.address,
+                    privateKey:btcAddr.privateKey
+                };
+
+                let ethAdd ={
+                    addrId:uuiid,
+                    chainName:"Ethereum",
+                    coinName:"ETH",
+                    address:ethAddr.address,
+                    privateKey:ethAddr.privateKey
+                };
+
+                let tbsvData = {
+                    addrId:uuiid,
+                    chainName:"Ethereum",
+                    coinName:"TBSV",
+                    contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                    address:ethAddr.address,
+                    privateKey:ethAddr.privateKey
+                };
+
+                let usdtData = {
+                    addrId:uuiid,
+                    chainName:"Ethereum",
+                    coinName:"USDT",
+                    contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                    address:ethAddr.address,
+                    privateKey:ethAddr.privateKey
+                };
+
+                let eosAdd = {
+                    addrId:uuiid,
+                    chainName:"Eos",
+                    coinName:"EOS",
+                    address:eosData.ddress,
+                    tag:eosData.tag
+                };
+                let result = {uuid:uuid, btc:btcAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
                 resolve({code:800, msg:"this address alread have", reslut:null});
