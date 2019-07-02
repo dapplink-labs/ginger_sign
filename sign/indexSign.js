@@ -31,7 +31,7 @@ libIndexSign.blockchainWalletSign = function (signParams) {
                 return constant.BitCoinSignFail;
             }
         case 'ETH':
-            if(signParams.privateKey && signParams.gasPrice && signParams.gasLimit && signParams.nonce && signParams.addressAmount){
+            if(signParams.privateKey && signParams.gasPrice && signParams.gasLimit && signParams.addressAmount){
                 var sendInfo = {
                     privateKey:signParams.privateKey,
                     gasPrice:signParams.gasPrice,
