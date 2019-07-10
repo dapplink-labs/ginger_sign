@@ -16,6 +16,7 @@ const baddress = require('bitcoinjs-lib/src/address');
 const addr = require('./address/generateAddress');
 const csign = require('./sign/indexSign');
 const en = require('./address/encrypt');
+const encrypts = require('./address/encrypt');
 const util = require('ethereumjs-util');
 const hdkey = require('ethereumjs-wallet/hdkey');
 const wallets = require('ethereumjs-wallet');
@@ -287,6 +288,35 @@ app.post('/sign', (req, res) => {
 });
 
 
+app.post('/updPwd', (req, res) => {
+    let {sequence, passwd}  = req.body;
+    let obj = {
+        sequence:sequence,
+        passwd:passwd,
+    };
+    updatePwd(obj).then((e) => {
+        res.send(e)
+    }).catch((e) => {
+        res.send('')
+    })
+});
+
+const updatePwd = (data) => {
+    let {sequence, passwd}  = data;
+    return new Promise((resolve, reject) => {
+        if (sequence == "" || passwd == "") {
+            resolve({code: 400, msg: "params is null", result: null});
+            return ;
+        }
+        let md5 = crypto.createHash("md5");
+        md5.update(passwd);
+        let passwdStr = md5.digest('hex');
+        let lpwd = passwdStr.toUpperCase();
+        updPassword(lpwd, sequence)
+        resolve({code:200, msg:"success", result:"update password success"});
+    });
+
+};
 
 // generateAllAddr
 const generateAllAddr = (data) => {
@@ -294,7 +324,7 @@ const generateAllAddr = (data) => {
     return new Promise((resolve, reject) => {
         if(sequence == "" || language == "" || passwd == "" || number == ""){
             resolve({code: 400, msg: "params is null", result: null});
-
+            return ;
         }
         getPwdWord(sequence).then((pwd) => {
             let md5 = crypto.createHash("md5");
@@ -303,9 +333,11 @@ const generateAllAddr = (data) => {
             let lpwd = passwdStr.toUpperCase();
             if (pwd == 100) {
                 resolve({code: 300, msg: "no such type mnemonic", result: null});
+                return ;
             }
             if (pwd != lpwd) {
                 resolve({code: 600, msg: "password is wrong", result: null});
+                return ;
             }
             getWords(sequence).then((mnemonicCode) => {
                 let words = mnemonic.entropyToWords(mnemonicCode, language);
@@ -338,14 +370,14 @@ const generateAllAddr = (data) => {
                                 coinName:"BTC",
                                 address:btcAddr.address,
                                 changeAddr:btcAddr.address,
-                                privateKey:btcAddr.privateKey
+                                privateKey:encrypts(key, iv, btcAddr.privateKey)
                             };
                             let ethData = {
                                 addrId:uiid,
                                 chainName:"Ethereum",
                                 coinName:"ETH",
                                 address:ethAddr.address,
-                                privateKey:ethAddr.privateKey
+                                privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
 
                             let tbsvData = {
@@ -354,7 +386,7 @@ const generateAllAddr = (data) => {
                                 coinName:"TBSV",
                                 contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
                                 address:ethAddr.address,
-                                privateKey:ethAddr.privateKey
+                                privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
 
                             let usdtData = {
@@ -363,7 +395,7 @@ const generateAllAddr = (data) => {
                                 coinName:"USDT",
                                 contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                                 address:ethAddr.address,
-                                privateKey:ethAddr.privateKey
+                                privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
 
                             let eosData = {
@@ -373,7 +405,6 @@ const generateAllAddr = (data) => {
                                 address:"xqcceoswasaswsdssdsdssaqs",
                                 tag:"5lea36"
                             };
-
                             let result = {btc:btcData, eth:ethData, tbsv:tbsvData, usdt:usdtData, eos:eosData};
                             resolve({code:200, msg:"success", result:result});
                         } else {
@@ -393,6 +424,7 @@ const singleExportKey = (data) => {
     return new Promise((resolve, reject) => {
         if (address == "" || passwd == ""){
             resolve({code:400, msg:"parameter is null", result:null});
+            return ;
         }
         getPwdAddr(address).then((pwd) => {
             let md5 = crypto.createHash("md5");
@@ -401,12 +433,15 @@ const singleExportKey = (data) => {
             let lpwd = passwdStr.toUpperCase();
             if(pwd == "100") {
                 resolve({code: 500, msg: "no this address", result: null});
+                return ;
             }
             if (pwd != lpwd) {
                 resolve({code: 600, msg: "password is wrong", result: null});
+                return ;
             }
             getSecret(address).then((privateKey) => {
-                let result = {privateKey:privateKey};
+                let enPrivateKey = encrypts(key, iv, privateKey);
+                let result = {privateKey:enPrivateKey};
                 resolve({code:200, msg:"success", result:result});
             });
         });
@@ -418,6 +453,7 @@ const walletExport = (data) => {
     return new Promise((resolve, reject) => {
         if (sequence == "" || language == "" || passwd == ""){
             resolve({code:400, msg:"parameter is null", result:null});
+            return ;
         }
         getPwdWord(sequence).then((pwd) => {
             let md5 = crypto.createHash("md5");
@@ -426,13 +462,17 @@ const walletExport = (data) => {
             let lpwd = passwdStr.toUpperCase();
             if(pwd == "100") {
                 resolve({code: 700, msg: "no this wallet", result: null});
+                return ;
             }
             if (pwd != lpwd) {
                 resolve({code: 600, msg: "password is wrong", result: null});
+                return ;
             }
             getWords(sequence).then((mnemonicCode) => {
-                let result = {walletprv:mnemonicCode};
+                let enMnemonicCode = encrypts(key, iv, mnemonicCode);
+                let result = {walletprv:enMnemonicCode};
                 mnemonicCode = null;
+                // enMnemonicCode = null;
                 resolve({code:200, msg:"success", result:result});
             }).catch((e) => {
                 reject(e.message)
@@ -446,6 +486,7 @@ const importPrivateKey = (data) => {
     return new Promise((resolve, reject) => {
         if(childKey == "" || passwd == "" || coinType == "") {
             resolve({code:400, msg:"parameter is null", result:null});
+            return ;
         }
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
@@ -458,7 +499,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), btcAddr.address, lpwd);
-                    let resutl = {sequence:uid, chainName:"Bitcoin", coinName:"BTC",address:btcAddr.address, privateKey:childKey}
+                    let resutl = {sequence:uid, chainName:"Bitcoin", coinName:"BTC",address:btcAddr.address, privateKey:encrypts(key, iv, childKey)}
                     resolve({code: 200, msg: "success", resutl:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -471,7 +512,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
-                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"ETH", address:ethAddr, privateKey:childKey};
+                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"ETH", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -484,7 +525,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
-                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"TBSV", contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2", address:ethAddr, privateKey:childKey};
+                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"TBSV", contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -498,7 +539,7 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
-                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"USDT", contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7", address:ethAddr, privateKey:childKey};
+                    let resutl = {sequence:uid, chainName:"Ethereum", coinName:"USDT", contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -553,14 +594,14 @@ const importRootKey = (data) => {
                         coinName:"BTC",
                         address:btcAddr.address,
                         changeAddr:btcAddr.address,
-                        privateKey:btcAddr.privateKey
+                        privateKey:encrypts(key, iv, btcAddr.privateKey)
                     };
                     let ethData = {
                         addrId:uiid,
                         chainName:"Ethereum",
                         coinName:"ETH",
                         address:ethAddr.address,
-                        privateKey:ethAddr.privateKey
+                        privateKey:encrypts(key, iv,ethAddr.privateKey)
                     };
 
                     let tbsvData = {
@@ -569,7 +610,7 @@ const importRootKey = (data) => {
                         coinName:"TBSV",
                         contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
                         address:ethAddr.address,
-                        privateKey:ethAddr.privateKey
+                        privateKey:encrypts(key, iv,ethAddr.privateKey)
                     };
 
                     let usdtData = {
@@ -578,7 +619,7 @@ const importRootKey = (data) => {
                         coinName:"USDT",
                         contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                         address:ethAddr.address,
-                        privateKey:ethAddr.privateKey
+                        privateKey:encrypts(key, iv,ethAddr.privateKey)
                     };
 
                     let eosData = {
@@ -683,6 +724,7 @@ const words = (data) => {
     return new Promise((resolve, reject) => {
         if (number == 0 || language == "" || passwd == "") {
             resolve({code:400, msg:"parameter is null", result:null});
+            return ;
         }
         if(number == 12 || number == 15 || number == 18 || number == 21 || number == 24)
         {
@@ -707,10 +749,12 @@ const exportWord = (data) => {
     return new Promise((resolve, reject) => {
         if(sequence == "" || language == "" || passwd =="" ) {
             resolve({code:400, msg:"parameter is null", result:null});
+            return ;
         }
         getPwdWord(sequence).then((pwd) => {
             if(pwd == "100") {
                 resolve({code:300, msg:"no such type mnemonic", result:null});
+                return ;
             }
             let md5 = crypto.createHash("md5");
             md5.update(passwd);
@@ -719,8 +763,12 @@ const exportWord = (data) => {
             if(lpwd == pwd) {
                 getWords(sequence).then((mnemonicCode) => {
                     let words = mnemonic.entropyToWords(mnemonicCode, language);
+                    let enwords = encrypts(key, iv, words);
+                    // console.log("enwords ==", enwords);
+                    // let deword = decrypt(key, iv, enwords);
+                    // console.log("deword ==", deword);
                     mnemonicCode = null;
-                    let result = {sequence:sequence, mnemonic:words}
+                    let result = {sequence:sequence, mnemonic:enwords}
                     resolve({code:200, msg:"success", result:result});
                 }).catch((e) => {
                     reject(e.message)
@@ -768,7 +816,7 @@ const generateAddr = (data) => {
                             mnemonicCode = null;
                             words = null;
                             seed = null;
-                            let result = { address:addrs.address, privateKey:addrs.privateKey };
+                            let result = { address:addrs.address, privateKey:encrypts(key, iv, addrs.privateKey)};
                             resolve({code:200, msg:"success", reslut:result});
                         } else {
                             resolve({code:800, msg:"this address alread have", reslut:null});
@@ -832,7 +880,7 @@ const importMnemonicAll = (data) => {
                     coinName:"BTC",
                     address:btcAddr.address,
                     changeAddr:btcAddr.address,
-                    privateKey:btcAddr.privateKey
+                    privateKey:encrypts(key, iv, btcAddr.privateKey)
                 };
 
                 let ethAdd ={
@@ -840,7 +888,7 @@ const importMnemonicAll = (data) => {
                     chainName:"Ethereum",
                     coinName:"ETH",
                     address:ethAddr.address,
-                    privateKey:ethAddr.privateKey
+                    privateKey:encrypts(key, iv, ethAddr.privateKey)
                 };
 
                 let tbsvData = {
@@ -849,7 +897,7 @@ const importMnemonicAll = (data) => {
                     coinName:"TBSV",
                     contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
                     address:ethAddr.address,
-                    privateKey:ethAddr.privateKey
+                    privateKey:encrypts(key, iv, ethAddr.privateKey)
                 };
 
                 let usdtData = {
@@ -858,7 +906,7 @@ const importMnemonicAll = (data) => {
                     coinName:"USDT",
                     contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                     address:ethAddr.address,
-                    privateKey:ethAddr.privateKey
+                    privateKey:encrypts(key, iv, ethAddr.privateKey)
                 };
 
                 let eosAdd = {
@@ -908,7 +956,7 @@ const importMnemonic = (data) => {
                     uuid = null;
                     encrptWord = null;
                     seed = null;
-                    let result = {address:addrs.address, privateKey:addrs.privateKey};
+                    let result = {address:addrs.address, privateKey:encrypts(key, iv, addrs.privateKey)};
                     resolve({code:200, msg:"success", result:result});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -987,6 +1035,18 @@ const deletSeqWord = (sequence)=> {
     return new Promise((resolve, reject) => {
         try {
             db.run("delete from word WHERE word_id = '" + sequence + "';");
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+
+const updPassword = (passwd, sequence)=> {
+    return new Promise((resolve, reject) => {
+        try {
+            db.run("update word set password = '" + passwd +"'  WHERE word_id = '" + sequence + "';");
+            db.run("update account set password = '" + passwd +"'  WHERE word_id = '" + sequence + "';");
         } catch (e) {
             reject(e.message);
         }
