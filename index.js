@@ -493,12 +493,13 @@ const importPrivateKey = (data) => {
         let passwdStr = md5.digest('hex');
         let lpwd = passwdStr.toUpperCase();
         if(coinType == "BTC") {
-            let keyPair = bitcoin.ECPair.fromWIF(childKey);
+            let deChildKey = decrypt(key, iv, childKey)
+            let keyPair = bitcoin.ECPair.fromWIF(deChildKey);
             let btcAddr = bitcoin.payments.p2pkh({pubkey:keyPair.publicKey});
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, childKey), btcAddr.address, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), btcAddr.address, lpwd);
                     let resutl = {sequence:uid, chainName:"Bitcoin", coinName:"BTC",address:btcAddr.address, privateKey:encrypts(key, iv, childKey)}
                     resolve({code: 200, msg: "success", resutl:resutl});
                 } else {
@@ -506,12 +507,13 @@ const importPrivateKey = (data) => {
                 }
             });
         } else if(coinType == "ETH") {
-            let addr = util.privateToAddress(Buffer.from(childKey, "hex")).toString('hex');
+            let deChildKey = decrypt(key, iv, childKey)
+            let addr = util.privateToAddress(Buffer.from(deChildKey, "hex")).toString('hex');
             let ethAddr = '0x' + addr;
             addrHave(ethAddr).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd);
                     let resutl = {sequence:uid, chainName:"Ethereum", coinName:"ETH", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
@@ -519,12 +521,13 @@ const importPrivateKey = (data) => {
                 }
             });
         } else if(coinType == "TBSV") {
-            let addr = util.privateToAddress(Buffer.from(childKey, "hex")).toString('hex');
+            let deChildKey = decrypt(key, iv, childKey)
+            let addr = util.privateToAddress(Buffer.from(deChildKey, "hex")).toString('hex');
             let ethAddr = '0x' + addr;
             addrHave(ethAddr).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd);
                     let resutl = {sequence:uid, chainName:"Ethereum", coinName:"TBSV", contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
@@ -533,12 +536,13 @@ const importPrivateKey = (data) => {
             });
 
         } else if (coinType == "USDT") {
-            let addr = util.privateToAddress(Buffer.from(childKey, "hex")).toString('hex');
+            let deChildKey = decrypt(key, iv, childKey)
+            let addr = util.privateToAddress(Buffer.from(deChildKey, "hex")).toString('hex');
             let ethAddr = '0x' + addr;
             addrHave(ethAddr).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, childKey), ethAddr, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd);
                     let resutl = {sequence:uid, chainName:"Ethereum", coinName:"USDT", contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7", address:ethAddr, privateKey:encrypts(key, iv, childKey)};
                     resolve({code: 200, msg: "success", result:resutl});
                 } else {
@@ -561,7 +565,8 @@ const importRootKey = (data) => {
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
         let lpwd = passwdStr.toUpperCase();
-        let words = mnemonic.entropyToWords(rootkey, language);
+        let deRootkey = decrypt(key, iv, rootkey)
+        let words = mnemonic.entropyToWords(deRootkey, language);
         let seed = mnemonic.mnemonicToSeed(words);
         let btcParmas = {
             "seed":seed,
@@ -579,7 +584,7 @@ const importRootKey = (data) => {
             "coinMark":"ETH"
         };
         let uuid = UUID.v1();
-        setMnemonicCode(uuid, rootkey, lpwd);
+        setMnemonicCode(uuid, deRootkey, lpwd);
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
         if(ethAddr != null && btcAddr != null) {
@@ -839,7 +844,8 @@ const importMnemonicAll = (data) => {
             resolve({code:400, msg:"parameter is null", result:null});
         }
         let uuid = UUID.v1();
-        let encrptWord = mnemonic.wordsToEntropy(word, language);
+        let deWord = decrypt(key, iv, word);
+        let encrptWord = mnemonic.wordsToEntropy(deWord, language);
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
@@ -933,7 +939,8 @@ const importMnemonic = (data) => {
             resolve({code:400, msg:"parameter is null", result:null});
         }
         let uuid = UUID.v1();
-        let encrptWord = mnemonic.wordsToEntropy(word, language);
+        let deWord = decrypt(key, iv, word);
+        let encrptWord = mnemonic.wordsToEntropy(deWord, language);
         let md5 = crypto.createHash("md5");
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
