@@ -725,7 +725,7 @@ const importRootKey = (data) => {
                         address:"xqcceoswasaswsdssdsdssaqs",
                         tag:"5lea36"
                     };
-                    let result = {sequence:uuid, btc:btcData, busdt:busdtData, eth:ethData, tbsv:tbsvData, eusdt:usdtData, eos:eosData};
+                    let result = {sequence:uuid, btc:btcData, btcusdt:busdtData, eth:ethData, tbsv:tbsvData, usdt:usdtData, eos:eosData};
                     resolve({code:200, msg:"success", result:result});
                 } else {
                     querySeqByAddr(btcAddr.address).then((seq) => {
