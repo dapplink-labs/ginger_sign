@@ -371,7 +371,6 @@ const generateAllAddr = (data) => {
                                 changeAddr:btcAddr.address,
                                 privateKey:encrypts(key, iv, btcAddr.privateKey)
                             };
-
                             let omniUsdtData = {
                                 addrId:uiid,
                                 chainName:"OMNI",
@@ -379,7 +378,6 @@ const generateAllAddr = (data) => {
                                 address:btcAddr.address,
                                 privateKey:encrypts(key, iv, btcAddr.privateKey)
                             };
-
                             let ethData = {
                                 addrId:uiid,
                                 chainName:"Ethereum",
@@ -387,7 +385,6 @@ const generateAllAddr = (data) => {
                                 address:ethAddr.address,
                                 privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
-
                             let tbsvData = {
                                 addrId:uiid,
                                 chainName:"Ethereum",
@@ -396,16 +393,14 @@ const generateAllAddr = (data) => {
                                 address:ethAddr.address,
                                 privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
-
                             let usdtData = {
                                 addrId:uiid,
                                 chainName:"Ethereum",
-                                coinName:"USDT",
+                                coinName:"USDT-ERC20",
                                 contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                                 address:ethAddr.address,
                                 privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
-
                             let eosData = {
                                 addrId:uiid,
                                 chainName:"Eos",
@@ -413,7 +408,7 @@ const generateAllAddr = (data) => {
                                 address:"xqcceoswasaswsdssdsdssaqs",
                                 tag:"5lea36"
                             };
-                            let result = {btc:btcData, busdt:omniUsdtData, eth:ethData, tbsv:tbsvData, eusdt:usdtData, eos:eosData};
+                            let result = {btc:btcData, btcusdt:omniUsdtData, eth:ethData, tbsv:tbsvData, usdt:usdtData, eos:eosData};
                             resolve({code:200, msg:"success", result:result});
                         } else {
                             resolve({code:800, msg:"this address alread have", reslut:null});
@@ -799,7 +794,7 @@ const importRootKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
+                            let result = {uuid:seq, btc:btcAdd, btcusdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
@@ -1092,7 +1087,7 @@ const importMnemonicAll = (data) => {
                     address:eosData.ddress,
                     tag:eosData.tag
                 };
-                let result = {uuid:uuid, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
+                let result = {uuid:uuid, btc:btcAdd, btcusdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
                 querySeqByAddr(btcAddr.address).then((seq) => {
