@@ -561,7 +561,6 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd, "1");
-
                     let ethData = {
                         sequence:uid,
                         chainName:"Ethereum",
@@ -574,6 +573,7 @@ const importPrivateKey = (data) => {
                         sequence:uid,
                         chainName:"Ethereum",
                         coinName:"USDT-ERC20",
+                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
                         address:ethAddr,
                         privateKey:childKey
                     };
@@ -582,6 +582,7 @@ const importPrivateKey = (data) => {
                         sequence:uid,
                         chainName:"Ethereum",
                         coinName:"TBSV",
+                        contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                         address:ethAddr,
                         privateKey:childKey
                     };
@@ -630,7 +631,6 @@ const importPrivateKey = (data) => {
                     });
                 }
             });
-
         } else {
             resolve({code: 900, msg: "no support cointype"})
         }
