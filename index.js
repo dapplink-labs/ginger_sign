@@ -503,7 +503,7 @@ const importPrivateKey = (data) => {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, deChildKey), btcAddr.address, lpwd, "1");
                     let btcData = {
-                        sequence:uid,
+                        addrId:uid,
                         chainName:"Bitcoin",
                         coinName:"BTC",
                         address:btcAddr.address,
@@ -511,13 +511,13 @@ const importPrivateKey = (data) => {
                     };
 
                     let usdtData = {
-                        sequence:uid,
+                        addrId:uid,
                         chainName:"OMNI",
                         coinName:"USDT",
                         address:btcAddr.address,
                         privateKey:childKey
                     };
-                    let result = {btc:btcData, busdt:usdtData}
+                    let result = {sequence:seq, btc:btcData, busdt:usdtData}
                     resolve({code: 200, msg: "success", result:result});
                 } else {
                     querySeqByAddr(btcAddr.address).then((seq) => {
@@ -546,7 +546,7 @@ const importPrivateKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {uuid:seq, btc:btcAdd, btcusdt:omniUsdtAdd};
+                            let result = {sequence:seq, btc:btcAdd, btcusdt:omniUsdtAdd};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
@@ -562,7 +562,7 @@ const importPrivateKey = (data) => {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd, "1");
                     let ethData = {
-                        sequence:uid,
+                        addrId:uid,
                         chainName:"Ethereum",
                         coinName:"ETH",
                         address:ethAddr,
@@ -570,7 +570,7 @@ const importPrivateKey = (data) => {
                     };
 
                     let eusdtData = {
-                        sequence:uid,
+                        addrId:uid,
                         chainName:"Ethereum",
                         coinName:"USDT-ERC20",
                         contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
@@ -579,7 +579,7 @@ const importPrivateKey = (data) => {
                     };
 
                     let tbsvData = {
-                        sequence:uid,
+                        addrId:uid,
                         chainName:"Ethereum",
                         coinName:"TBSV",
                         contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
