@@ -507,7 +507,6 @@ const importPrivateKey = (data) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
                     setAddressKey(uid, uid, en(key, iv, deChildKey), btcAddr.address, lpwd, "1");
-
                     let btcData = {
                         sequence:uid,
                         chainName:"Bitcoin",
@@ -526,7 +525,37 @@ const importPrivateKey = (data) => {
                     let result = {btc:btcData, busdt:usdtData}
                     resolve({code: 200, msg: "success", result:result});
                 } else {
-                    resolve({code:800, msg:"this address alread have", reslut:null});
+                    querySeqByAddr(btcAddr.address).then((seq) => {
+                        updAccountStutas(seq);
+                        updWordStutas(seq);
+                        queryWallet(seq).then((res)=>{
+                            let btcAdd = "";
+                            let omniUsdtAdd = "";
+                            for(let i = 0; i < res.length; i++) {
+                                if(res[i].address === btcAddr.address) {
+                                    btcAdd = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Bitcoin",
+                                        coinName:"BTC",
+                                        address:res[i].address,
+                                        changeAddr:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    omniUsdtAdd = {
+                                        addrId:res[i].address_id,
+                                        chainName:"OMNI",
+                                        coinName:"USDT",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+                                }
+                            }
+                            let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd};
+                            resolve({code:200, msg:"success", result:result});
+                        })
+                    });
+                    // resolve({code:800, msg:"this address alread have", reslut:null});
                 }
             });
         } else if(coinType == "ETH") {
@@ -561,13 +590,49 @@ const importPrivateKey = (data) => {
                         address:ethAddr,
                         privateKey:childKey
                     };
-                    
                     let result = {eth:ethData, eusdt:eusdtData, tbsv:tbsvData};
                     resolve({code: 200, msg: "success", result:result});
-
-
                 } else {
-                    resolve({code:800, msg:"this address alread have", reslut:null});
+                    querySeqByAddr(ethAddr).then((seq) => {
+                        updAccountStutas(seq);
+                        updWordStutas(seq);
+                        queryWallet(seq).then((res)=>{
+                            let ethAdd = "";
+                            let tbsvData = "";
+                            let usdtData = "";
+                            for(let i = 0; i < res.length; i++) {
+                                if(ethAddr === res[i].address){
+                                    ethAdd ={
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"ETH",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    tbsvData = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"TBSV",
+                                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    usdtData = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"USDT-ERC20",
+                                        contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+                                }
+                            }
+                            let result = {uuid:seq, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData};
+                            resolve({code:200, msg:"success", result:result});
+                        })
+                    });
                 }
             });
 
@@ -668,7 +733,76 @@ const importRootKey = (data) => {
                     let result = {sequence:uuid, btc:btcData, busdt:busdtData, eth:ethData, tbsv:tbsvData, eusdt:usdtData, eos:eosData};
                     resolve({code:200, msg:"success", result:result});
                 } else {
-                    resolve({code:800, msg:"this address alread have", reslut:null});
+                    querySeqByAddr(btcAddr.address).then((seq) => {
+                        updAccountStutas(seq);
+                        updWordStutas(seq);
+                        queryWallet(seq).then((res)=>{
+                            let btcAdd = "";
+                            let omniUsdtAdd = "";
+                            let ethAdd = "";
+                            let tbsvData = "";
+                            let usdtData = "";
+                            let eosAdd = "";
+                            for(let i = 0; i < res.length; i++) {
+                                if(res[i].address === btcAddr.address) {
+                                    btcAdd = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Bitcoin",
+                                        coinName:"BTC",
+                                        address:res[i].address,
+                                        changeAddr:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    omniUsdtAdd = {
+                                        addrId:res[i].address_id,
+                                        chainName:"OMNI",
+                                        coinName:"USDT",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+                                }
+
+                                if(ethAddr.address === res[i].address){
+                                    ethAdd ={
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"ETH",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    tbsvData = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"TBSV",
+                                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    usdtData = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Ethereum",
+                                        coinName:"USDT-ERC20",
+                                        contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                                        address:res[i].address,
+                                        privateKey:res[i].secret
+                                    };
+
+                                    eosAdd = {
+                                        addrId:res[i].address_id,
+                                        chainName:"Eos",
+                                        coinName:"EOS",
+                                        address:"xqcceoswasaswsdssdsdssaqs",
+                                        tag:"abdcd"
+                                    };
+                                }
+                            }
+                            let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
+                            resolve({code:200, msg:"success", result:result});
+                        })
+                    });
                 }
             });
         }
@@ -961,17 +1095,76 @@ const importMnemonicAll = (data) => {
                 let result = {uuid:uuid, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
-                console.log("addr===", btcAddr.address);
                 querySeqByAddr(btcAddr.address).then((seq) => {
-                    console.log("seq====", seq);
                     updAccountStutas(seq);
                     updWordStutas(seq);
-
                     queryWallet(seq).then((res)=>{
-                        resolve({code:800, msg:res, reslut:null});
+                        let btcAdd = "";
+                        let omniUsdtAdd = "";
+                        let ethAdd = "";
+                        let tbsvData = "";
+                        let usdtData = "";
+                        let eosAdd = "";
+                        for(let i = 0; i < res.length; i++) {
+                           if(res[i].address === btcAddr.address) {
+                               btcAdd = {
+                                   addrId:res[i].address_id,
+                                   chainName:"Bitcoin",
+                                   coinName:"BTC",
+                                   address:res[i].address,
+                                   changeAddr:res[i].address,
+                                   privateKey:res[i].secret
+                               };
+
+                               omniUsdtAdd = {
+                                   addrId:res[i].address_id,
+                                   chainName:"OMNI",
+                                   coinName:"USDT",
+                                   address:res[i].address,
+                                   privateKey:res[i].secret
+                               };
+                           }
+
+                           if(ethAddr.address === res[i].address){
+                               ethAdd ={
+                                   addrId:res[i].address_id,
+                                   chainName:"Ethereum",
+                                   coinName:"ETH",
+                                   address:res[i].address,
+                                   privateKey:res[i].secret
+                               };
+
+                               tbsvData = {
+                                   addrId:res[i].address_id,
+                                   chainName:"Ethereum",
+                                   coinName:"TBSV",
+                                   contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                   address:res[i].address,
+                                   privateKey:res[i].secret
+                               };
+
+                               usdtData = {
+                                   addrId:res[i].address_id,
+                                   chainName:"Ethereum",
+                                   coinName:"USDT-ERC20",
+                                   contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                                   address:res[i].address,
+                                   privateKey:res[i].secret
+                               };
+
+                               eosAdd = {
+                                   addrId:res[i].address_id,
+                                   chainName:"Eos",
+                                   coinName:"EOS",
+                                   address:"xqcceoswasaswsdssdsdssaqs",
+                                   tag:"abdcd"
+                               };
+                           }
+                        }
+                        let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
+                        resolve({code:200, msg:"success", result:result});
                     })
                 });
-
             }
         });
     });
@@ -1270,10 +1463,9 @@ const queryWallet = (seq) => {
     return new Promise((resolve, reject) => {
         try {
             let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
-                sql = "SELECT `word_id` FROM `account` WHERE `word_id` = '" + seq + "' LIMIT 2;";
+                sql = "SELECT * FROM `account` WHERE `word_id` = '" + seq + "';";
                 db.all(sql, (err, res) => {
-                    if (!err && res.length == 1){
-                        console.log("res===", res);
+                    if (!err){
                         let wordId = res;
                         resolve(wordId);
                         wordId = null;
