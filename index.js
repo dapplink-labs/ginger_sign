@@ -586,7 +586,7 @@ const importPrivateKey = (data) => {
                         address:ethAddr,
                         privateKey:childKey
                     };
-                    let result = {eth:ethData, usdt:eusdtData, tbsv:tbsvData};
+                    let result = {sequence:seq, eth:ethData, usdt:eusdtData, tbsv:tbsvData};
                     resolve({code: 200, msg: "success", result:result});
                 } else {
                     querySeqByAddr(ethAddr).then((seq) => {
@@ -599,7 +599,7 @@ const importPrivateKey = (data) => {
                             for(let i = 0; i < res.length; i++) {
                                 if(ethAddr === res[i].address){
                                     ethAdd ={
-                                        addrId:res[i].address_id,
+                                        sequence:res[i].address_id,
                                         chainName:"Ethereum",
                                         coinName:"ETH",
                                         address:res[i].address,
@@ -607,7 +607,7 @@ const importPrivateKey = (data) => {
                                     };
 
                                     tbsvData = {
-                                        addrId:res[i].address_id,
+                                        sequence:res[i].address_id,
                                         chainName:"Ethereum",
                                         coinName:"TBSV",
                                         contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
@@ -616,7 +616,7 @@ const importPrivateKey = (data) => {
                                     };
 
                                     usdtData = {
-                                        addrId:res[i].address_id,
+                                        sequence:res[i].address_id,
                                         chainName:"Ethereum",
                                         coinName:"USDT-ERC20",
                                         contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
@@ -625,7 +625,7 @@ const importPrivateKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {uuid:seq, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData};
+                            let result = {sequence:seq, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
