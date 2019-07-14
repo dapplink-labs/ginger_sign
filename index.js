@@ -30,8 +30,8 @@ const _passwd = /^[A-Za-z0-9]{16}$/;
 
 db.serialize(() => {
     if (!fs.existsSync(coin)) {
-        db.run("CREATE TABLE word(word_id varchar(128), mnemonic_code varchar(256), password varchar(128));");
-        db.run("CREATE TABLE account(address_id varchar(128), word_id varchar(128), secret varchar(256), address varchar(80), password varchar(128));");
+        db.run("CREATE TABLE word(word_id varchar(128), mnemonic_code varchar(256), password varchar(128), del varchar(1));");
+        db.run("CREATE TABLE account(address_id varchar(128), word_id varchar(128), secret varchar(256), address varchar(80), password varchar(128), del varchar(1));");
     }
 });
 
@@ -124,7 +124,7 @@ app.post('/walletExport', (req, res) => {
     })
 });
 
-// 生成单个币地址 --4
+// 生成单个币地址(此接口不用)
 app.post('/address', (req, res) => {
     let {sequence, coinType, number, bipNumber, receiveOrChange, coinMark, language, passwd} = req.body;
     let obj = {
@@ -162,7 +162,7 @@ app.post('/allAddress', (req, res) => {
     })
 });
 
-// 导入助记词生成单个地址--6
+// 导入助记词生成单个地址--6(此接口不用)
 app.post('/import', (req, res) => {
     let {mnemonic, language, coinType, number, bipNumber, receiveOrChange, coinMark, passwd} = req.body;
     let obj = {
@@ -361,8 +361,8 @@ const generateAllAddr = (data) => {
                     addrHave(ethAddr.address).then((addresss) => {
                         let uiid = UUID.v1();
                         if(addresss == "100") {
-                            setAddressKey(uiid, sequence, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                            setAddressKey(uiid, sequence, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                            setAddressKey(uiid, sequence, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd, "1");
+                            setAddressKey(uiid, sequence, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd, "1");
                             let btcData ={
                                 addrId:uiid,
                                 chainName:"Bitcoin",
@@ -506,7 +506,7 @@ const importPrivateKey = (data) => {
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, deChildKey), btcAddr.address, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), btcAddr.address, lpwd, "1");
 
                     let btcData = {
                         sequence:uid,
@@ -536,7 +536,7 @@ const importPrivateKey = (data) => {
             addrHave(ethAddr).then((addresss) => {
                 if(addresss == "100") {
                     let uid = UUID.v1();
-                    setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd);
+                    setAddressKey(uid, uid, en(key, iv, deChildKey), ethAddr, lpwd, "1");
 
                     let ethData = {
                         sequence:uid,
@@ -606,15 +606,15 @@ const importRootKey = (data) => {
             "coinMark":"ETH"
         };
         let uuid = UUID.v1();
-        setMnemonicCode(uuid, deRootkey, lpwd);
+        setMnemonicCode(uuid, deRootkey, lpwd, "1");
         let btcAddr = addr.blockchainAddress(btcParmas);
         let ethAddr = addr.blockchainAddress(ethParmas);
         if(ethAddr != null && btcAddr != null) {
             addrHave(btcAddr.address).then((addresss) => {
                 if(addresss == "100") {
                     let uiid = UUID.v1();
-                    setAddressKey(uiid, uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                    setAddressKey(uiid, uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                    setAddressKey(uiid, uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd, "1");
+                    setAddressKey(uiid, uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd, "1");
                     let btcData ={
                         addrId:uiid,
                         chainName:"Bitcoin",
@@ -623,6 +623,15 @@ const importRootKey = (data) => {
                         changeAddr:btcAddr.address,
                         privateKey:encrypts(key, iv, btcAddr.privateKey)
                     };
+
+                    let busdtData ={
+                        addrId:uiid,
+                        chainName:"OMNI",
+                        coinName:"USDT",
+                        address:btcAddr.address,
+                        privateKey:encrypts(key, iv, btcAddr.privateKey)
+                    };
+
                     let ethData = {
                         addrId:uiid,
                         chainName:"Ethereum",
@@ -643,7 +652,7 @@ const importRootKey = (data) => {
                     let usdtData = {
                         addrId:uiid,
                         chainName:"Ethereum",
-                        coinName:"USDT",
+                        coinName:"USDT-ERC20",
                         contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                         address:ethAddr.address,
                         privateKey:encrypts(key, iv,ethAddr.privateKey)
@@ -656,7 +665,7 @@ const importRootKey = (data) => {
                         address:"xqcceoswasaswsdssdsdssaqs",
                         tag:"5lea36"
                     };
-                    let result = {sequence:uuid, btc:btcData, eth:ethData, tbsv:tbsvData, usdt:usdtData, eos:eosData};
+                    let result = {sequence:uuid, btc:btcData, busdt:busdtData, eth:ethData, tbsv:tbsvData, eusdt:usdtData, eos:eosData};
                     resolve({code:200, msg:"success", result:result});
                 } else {
                     resolve({code:800, msg:"this address alread have", reslut:null});
@@ -762,7 +771,7 @@ const words = (data) => {
             md5.update(passwd);
             let passwdStr = md5.digest('hex');
             var lpwd =passwdStr.toUpperCase();
-            setMnemonicCode(uid, encrptWord, lpwd);
+            setMnemonicCode(uid, encrptWord, lpwd, "1");
             let result = {sequence:uid, mnemonic:encrypts(key, iv, words)};
             resolve({code:200, msg:"success", result:result});
         } else {
@@ -857,7 +866,7 @@ const generateAddr = (data) => {
 };
 
 const importMnemonicAll = (data) => {
-    let {word, language, passwd, number, bipNumber, receiveOrChange} =data;
+    let {word, language, passwd, number, bipNumber, receiveOrChange} = data;
     return new Promise((resolve, reject) => {
         if(word == "" || language == "" || passwd == "") {
             resolve({code:400, msg:"parameter is null", result:null});
@@ -869,7 +878,7 @@ const importMnemonicAll = (data) => {
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
         let lpwd =passwdStr.toUpperCase();
-        setMnemonicCode(uuid, encrptWord, lpwd);
+        setMnemonicCode(uuid, encrptWord, lpwd, "1");
         let seed = mnemonic.mnemonicToSeed(deWord);
         let btcParmas = {
             "seed":seed,
@@ -897,8 +906,8 @@ const importMnemonicAll = (data) => {
         addrHave(btcAddr.address).then((addresss) => {
             if(addresss == "100") {
                 let uuiid = UUID.v1();
-                setAddressKey(uuiid, uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd);
-                setAddressKey(uuiid, uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd);
+                setAddressKey(uuiid, uuid, en(key, iv, btcAddr.privateKey), btcAddr.address, lpwd, "1");
+                setAddressKey(uuiid, uuid, en(key, iv, ethAddr.privateKey), ethAddr.address, lpwd, "1");
                 let btcAdd = {
                     addrId:uuiid,
                     chainName:"Bitcoin",
@@ -952,7 +961,17 @@ const importMnemonicAll = (data) => {
                 let result = {uuid:uuid, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
                 resolve({code:200, msg:"success", result:result});
             } else {
-                resolve({code:800, msg:"this address alread have", reslut:null});
+                console.log("addr===", btcAddr.address);
+                querySeqByAddr(btcAddr.address).then((seq) => {
+                    console.log("seq====", seq);
+                    updAccountStutas(seq);
+                    updWordStutas(seq);
+
+                    queryWallet(seq).then((res)=>{
+                        resolve({code:800, msg:res, reslut:null});
+                    })
+                });
+
             }
         });
     });
@@ -1000,7 +1019,6 @@ const importMnemonic = (data) => {
     });
 };
 
-
 const deleteWallet = (data) => {
     let {wmark, sequence, passwd} =data;
     return new Promise((resolve, reject) => {
@@ -1024,9 +1042,11 @@ const deleteWallet = (data) => {
                 resolve({code: 200, msg: "delete wallet success"});
             })
         } else if (wmark == "BTC") {
+            deletSeqWord(sequence);
             deleteSeqAccount(sequence);
             resolve({code: 200, msg: "delete wallet success"});
         } else if(wmark == "ETH") {
+            deletSeqWord(sequence);
             deleteSeqAccount(sequence);
             resolve({code: 200, msg: "delete wallet success"});
         } else {
@@ -1035,20 +1055,40 @@ const deleteWallet = (data) => {
     });
 };
 
-const setMnemonicCode = (uuid, seedCode, lpwd) => {
+const setMnemonicCode = (uuid, seedCode, lpwd, del) => {
     return new Promise((resolve, reject) => {
         try {
-             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${lpwd}');`);
+             db.run(`INSERT INTO word VALUES('${uuid}', '${seedCode}', '${lpwd}', '${del}');`);
         } catch (e) {
             reject(e.message);
         }
     });
 };
 
-const setAddressKey = (uuid, wid, secret, address, lpwd) => {
+const setAddressKey = (uuid, wid, secret, address, lpwd, del) => {
     return new Promise((resolve, reject) => {
         try {
-            db.run(`INSERT INTO account VALUES('${uuid}', '${wid}', '${secret}', '${address}', '${lpwd}');`);
+            db.run(`INSERT INTO account VALUES('${uuid}', '${wid}', '${secret}', '${address}', '${lpwd}', '${del}');`);
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const updAccountStutas = (sequence) => {
+    return new Promise((resolve, reject) => {
+        try {
+            db.run("update account set del = 1 WHERE word_id = '" + sequence + "';");
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const updWordStutas = (sequence) => {
+    return new Promise((resolve, reject) => {
+        try {
+            db.run("update word set del = 1 WHERE word_id = '" + sequence + "';");
         } catch (e) {
             reject(e.message);
         }
@@ -1058,7 +1098,7 @@ const setAddressKey = (uuid, wid, secret, address, lpwd) => {
 const deleteSeqAccount = (sequence)=> {
     return new Promise((resolve, reject) => {
         try {
-            db.run("delete from account WHERE word_id = '" + sequence + "';");
+            db.run("update account set del = 0 WHERE word_id = '" + sequence + "';");
         } catch (e) {
             reject(e.message);
         }
@@ -1068,7 +1108,7 @@ const deleteSeqAccount = (sequence)=> {
 const deletSeqWord = (sequence)=> {
     return new Promise((resolve, reject) => {
         try {
-            db.run("delete from word WHERE word_id = '" + sequence + "';");
+            db.run("update word set del = 0 WHERE word_id = '" + sequence + "';");
         } catch (e) {
             reject(e.message);
         }
@@ -1091,7 +1131,7 @@ const getPwdWord = (sequence) => {
     return new Promise((resolve, reject) => {
         try {
             let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
-                sql = "SELECT password FROM word WHERE word_id = '" + sequence + "' LIMIT 1;";
+                sql = "SELECT password FROM word WHERE word_id = '" + sequence + "' AND del = 1 LIMIT 1;";
                 db.all(sql, (err, res) => {
                     if (!err && res.length == 1){
                         let code = res[0].password;
@@ -1114,7 +1154,7 @@ const getWords = (sequence) => {
     return new Promise((resolve, reject) => {
         try {
             let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
-                sql = "SELECT mnemonic_code FROM word WHERE word_id = '" + sequence + "' LIMIT 1;";
+                sql = "SELECT mnemonic_code FROM word WHERE word_id = '" + sequence + "' AND del = 1 LIMIT 1;";
                 db.all(sql, (err, res) => {
                     if (!err && res.length == 1){
                         let code = res[0].mnemonic_code;
@@ -1190,6 +1230,53 @@ const addrHave = (fromAddr)=> {
                         let addr = res.address;
                         resolve(addr);
                         addr = null;
+                        db = null
+                    }else{
+                        resolve("100");
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const querySeqByAddr = (address)=> {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT `word_id` FROM `account` WHERE `address` = '" + address + "' LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let wordId = res[0].word_id;
+                        resolve(wordId);
+                        wordId = null;
+                        db = null
+                    }else{
+                        resolve("100");
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
+const queryWallet = (seq) => {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT `word_id` FROM `account` WHERE `word_id` = '" + seq + "' LIMIT 2;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        console.log("res===", res);
+                        let wordId = res;
+                        resolve(wordId);
+                        wordId = null;
                         db = null
                     }else{
                         resolve("100");
