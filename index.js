@@ -1156,7 +1156,7 @@ const importMnemonicAll = (data) => {
                                };
                            }
                         }
-                        let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData, eos:eosAdd};
+                        let result = {uuid:seq, btc:btcAdd, btcusdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
                         resolve({code:200, msg:"success", result:result});
                     })
                 });
