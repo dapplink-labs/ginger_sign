@@ -546,7 +546,7 @@ const importPrivateKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {uuid:seq, btc:btcAdd, busdt:omniUsdtAdd};
+                            let result = {uuid:seq, btc:btcAdd, btcusdt:omniUsdtAdd};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
@@ -585,7 +585,7 @@ const importPrivateKey = (data) => {
                         address:ethAddr,
                         privateKey:childKey
                     };
-                    let result = {eth:ethData, eusdt:eusdtData, tbsv:tbsvData};
+                    let result = {eth:ethData, usdt:eusdtData, tbsv:tbsvData};
                     resolve({code: 200, msg: "success", result:result});
                 } else {
                     querySeqByAddr(ethAddr).then((seq) => {
