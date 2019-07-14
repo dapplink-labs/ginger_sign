@@ -794,7 +794,7 @@ const importRootKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {uuid:seq, btc:btcAdd, btcusdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
+                            let result = {sequence:seq, btc:btcAdd, btcusdt:omniUsdtAdd, eth:ethAdd, tbsv:tbsvData, usdt:usdtData, eos:eosAdd};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
