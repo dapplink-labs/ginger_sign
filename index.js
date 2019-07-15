@@ -625,7 +625,7 @@ const importPrivateKey = (data) => {
                                     };
                                 }
                             }
-                            let result = {sequence:seq, eth:ethAdd, tbsv:tbsvData, eusdt:usdtData};
+                            let result = {sequence:seq, eth:ethAdd, tbsv:tbsvData, usdt:usdtData};
                             resolve({code:200, msg:"success", result:result});
                         })
                     });
