@@ -388,8 +388,8 @@ const generateAllAddr = (data) => {
                             let tbsvData = {
                                 addrId:uiid,
                                 chainName:"Ethereum",
-                                coinName:"TBSV",
-                                contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                coinName:"TBS",
+                                contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                                 address:ethAddr.address,
                                 privateKey:encrypts(key, iv, ethAddr.privateKey)
                             };
@@ -443,9 +443,15 @@ const singleExportKey = (data) => {
                 return ;
             }
             getSecret(address).then((privateKey) => {
-                let enPrivateKey = encrypts(key, iv, privateKey);
-                let result = {privateKey:enPrivateKey};
-                resolve({code:200, msg:"success", result:result});
+                if(privateKey == "100") {
+                    resolve({code: 500, msg: "no this address", result: null});
+                    return ;
+                } else {
+                    let enPrivateKey = encrypts(key, iv, privateKey);
+                    let result = {privateKey:enPrivateKey};
+                    resolve({code:200, msg:"success", result:result});
+                }
+
             });
         });
     });
@@ -573,7 +579,7 @@ const importPrivateKey = (data) => {
                         addrId:uid,
                         chainName:"Ethereum",
                         coinName:"USDT-ERC20",
-                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                        contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
                         address:ethAddr,
                         privateKey:childKey
                     };
@@ -581,8 +587,8 @@ const importPrivateKey = (data) => {
                     let tbsvData = {
                         addrId:uid,
                         chainName:"Ethereum",
-                        coinName:"TBSV",
-                        contractName:"0xdac17f958d2ee523a2206206994597c13d831ec7",
+                        coinName:"TBS",
+                        contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                         address:ethAddr,
                         privateKey:childKey
                     };
@@ -609,8 +615,8 @@ const importPrivateKey = (data) => {
                                     tbsvData = {
                                         sequence:res[i].address_id,
                                         chainName:"Ethereum",
-                                        coinName:"TBSV",
-                                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                        coinName:"TBS",
+                                        contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                                         address:res[i].address,
                                         privateKey:res[i].secret
                                     };
@@ -703,8 +709,8 @@ const importRootKey = (data) => {
                     let tbsvData = {
                         addrId:uiid,
                         chainName:"Ethereum",
-                        coinName:"TBSV",
-                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                        coinName:"TBS",
+                        contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                         address:ethAddr.address,
                         privateKey:encrypts(key, iv,ethAddr.privateKey)
                     };
@@ -770,8 +776,8 @@ const importRootKey = (data) => {
                                     tbsvData = {
                                         addrId:res[i].address_id,
                                         chainName:"Ethereum",
-                                        coinName:"TBSV",
-                                        contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                        coinName:"TBS",
+                                        contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                                         address:res[i].address,
                                         privateKey:res[i].secret
                                     };
@@ -1007,7 +1013,11 @@ const importMnemonicAll = (data) => {
         md5.update(passwd);
         let passwdStr = md5.digest('hex');
         let lpwd =passwdStr.toUpperCase();
+
+
         setMnemonicCode(uuid, encrptWord, lpwd, "1");
+
+
         let seed = mnemonic.mnemonicToSeed(deWord);
         let btcParmas = {
             "seed":seed,
@@ -1065,8 +1075,8 @@ const importMnemonicAll = (data) => {
                 let tbsvData = {
                     addrId:uuiid,
                     chainName:"Ethereum",
-                    coinName:"TBSV",
-                    contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                    coinName:"TBS",
+                    contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                     address:ethAddr.address,
                     privateKey:encrypts(key, iv, ethAddr.privateKey)
                 };
@@ -1132,8 +1142,8 @@ const importMnemonicAll = (data) => {
                                tbsvData = {
                                    addrId:res[i].address_id,
                                    chainName:"Ethereum",
-                                   coinName:"TBSV",
-                                   contractName:"0x29566d87b94d5f76029288e4d0c7af0f9fda98b2",
+                                   coinName:"TBS",
+                                   contractName:"0x88bcea6bbfebadcc15df978f8455132e60d34c9a",
                                    address:res[i].address,
                                    privateKey:res[i].secret
                                };
@@ -1361,11 +1371,34 @@ const getWords = (sequence) => {
     });
 };
 
+const getmCode = (sequence) => {
+    return new Promise((resolve, reject) => {
+        try {
+            let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
+                sql = "SELECT word_id FROM word WHERE mnemonic_code = '" + sequence + "' AND del = 1 LIMIT 1;";
+                db.all(sql, (err, res) => {
+                    if (!err && res.length == 1){
+                        let code = res[0].mnemonic_code;
+                        resolve(code);
+                        code = null;
+                        db = null
+                    }else{
+                        reject('错误：数据库没有查找到支付地址');
+                        db = null
+                    }
+                })
+            })
+        } catch (e) {
+            reject(e.message);
+        }
+    });
+};
+
 const getSecret = (fromAddr) => {
     return new Promise((resolve, reject) => {
         try {
             let db = new sqlite3.Database(path.join(process.cwd(), './static', 'coin.db'), () => {
-                sql = "SELECT `secret` FROM `account` WHERE `address` = '" + fromAddr + "' LIMIT 1;";
+                sql = "SELECT `secret` FROM `account` WHERE `address` = '" + fromAddr + "' AND del = 1 LIMIT 1;";
                 db.all(sql, (err, res) => {
                     if (!err && res.length == 1){
                         let privateKey = decrypts(key, iv, res[0].secret);
@@ -1476,5 +1509,7 @@ const queryWallet = (seq) => {
         }
     });
 };
+
+
 
 app.listen(9090);
