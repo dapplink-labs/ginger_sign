@@ -33,13 +33,13 @@ libUsdtSign.usdtSign = function (privateKey, utxo, feeValue, usdtValue, fromAddr
     var txb = new bitcoin.TransactionBuilder();
     var set = bitcoin.ECPair.fromWIF(privateKey);
     const fundValue = 546;
-    var usdtAmount = parseInt(usdtValue*1e8).toString(16);
+    var usdtAmount = parseInt(usdtValue).toString(16);
     var totalUnspent = 0;
     for(var i = 0; i < utxo.length; i++){
         totalUnspent = totalUnspent + utxo[i].value;
     }
-    const changeValue = totalUnspent - fundValue - (feeValue*1e8);
-    if (totalUnspent < feeValue + fundValue) {
+    const changeValue = Number(totalUnspent) - Number(fundValue) - Number(feeValue);
+    if (totalUnspent < Number(feeValue) + Number(fundValue)) {
         console.log("Total less than fee");
         return constant.LessValue;
     }

@@ -53,6 +53,7 @@ ligBitcoinSign.btcMultiSign = function(sendInfo, utxo) {
         var sendAmount = 0;
         txb.setVersion(1);
         var totalMoney = 0;
+        console.log("lennenen == ", utxo.length)
         for(var i=0; i<utxo.length; i++){
             txb.addInput(utxo[i].tx_hash_big_endian, utxo[i].tx_output_n);
             totalMoney += utxo[i].value;

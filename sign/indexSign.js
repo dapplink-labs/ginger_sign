@@ -24,6 +24,9 @@ libIndexSign.blockchainWalletSign = function (signParams) {
                     sendFee:signParams.sendFee,
                     addressAmount:signParams.addressAmount
                 };
+                console.log("================");
+                console.log("uxto================", signParams.utxo);
+                console.log("================");
                 var uxto = signParams.utxo;
                 return bitcoinSign.btcMultiSign(sendInfo, signParams.utxo);
             } else {
@@ -70,7 +73,7 @@ libIndexSign.blockchainWalletSign = function (signParams) {
                     feeValue:signParams.sendFee,
                     addressAmount:signParams.addressAmount
                 };
-                return omniSign.usdtSign(privateKey, utxo, feeValue, addressAmount[0].amount, fromAddress, addressAmount[0].toAddress);
+                return omniSign.usdtSign(sendInfo.privateKey, sendInfo.utxo, sendInfo.feeValue, sendInfo.addressAmount[0].amount, sendInfo.fromAddress, sendInfo.addressAmount[0].toAddress);
             } else {
                 console.log("omni sign fail, please check it");
                 return constant.OmniSignFail;
